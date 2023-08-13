@@ -622,7 +622,7 @@ begin
   FPanelDoubleClick := False;
 
   FSelectionContent := TSelectionContent.Create(Self);
-  FSelectionContent.OnUpdateSpecialProperty := HandleOnUpdateSpecialProperty;
+  FSelectionContent.OnUpdateSpecialProperty := {$IFDEF FPC}@{$ENDIF}HandleOnUpdateSpecialProperty;
 
   sttxtMatchTop.Height := 1;
   sttxtMatchBottom.Height := 1;

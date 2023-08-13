@@ -266,10 +266,6 @@ object frDrawingBoard: TfrDrawingBoard
         ImageIndex = 1
         OnMouseEnter = PageControlScreenMouseEnter
         OnMouseLeave = PageControlScreenMouseLeave
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
       end
     end
     object pnlSearchForScreen: TPanel
