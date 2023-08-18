@@ -3,18 +3,19 @@ object frmDrbSchPrjEditor: TfrmDrbSchPrjEditor
   Height = 483
   Top = 43
   Width = 700
-  Caption = 'DrawingBoard - Schema Project Editor'
+  Caption = 'DrawingBoard - MetaSchema Editor'
   ClientHeight = 463
   ClientWidth = 700
   Menu = mmDrbSch
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   LCLVersion = '7.5'
   object pnlSchemaProjOI: TPanel
     Left = 0
     Height = 406
     Top = 0
-    Width = 688
-    Anchors = [akTop, akLeft, akBottom]
+    Width = 696
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'pnlSchemaProjOI'
     TabOrder = 0
   end
@@ -22,9 +23,23 @@ object frmDrbSchPrjEditor: TfrmDrbSchPrjEditor
     Left = 0
     Height = 15
     Top = 416
-    Width = 666
+    Width = 653
     Anchors = [akLeft, akBottom]
-    Caption = 'This is an editor for schema project files (*.drbsch), which are metadata schemas for DrawingBoard schemafiles (e.g. *.dynsch).'
+    Caption = 'This is an editor for metaschema files (*.drbsch), which are metadata schemas for DrawingBoard schemafiles (e.g. *.dynsch).'
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Height = 23
+    Top = 440
+    Width = 700
+    Panels = <    
+      item
+        Width = 65
+      end    
+      item
+        Width = 500
+      end>
+    SimplePanel = False
   end
   object mmDrbSch: TMainMenu
     Left = 499
@@ -33,10 +48,26 @@ object frmDrbSchPrjEditor: TfrmDrbSchPrjEditor
       Caption = 'File'
       object MenuItem_New: TMenuItem
         Caption = 'New'
+        OnClick = MenuItem_NewClick
       end
       object MenuItem_Open: TMenuItem
         Caption = 'Open...'
         OnClick = MenuItem_OpenClick
+      end
+      object MenuItem_Save: TMenuItem
+        Caption = 'Save'
+        OnClick = MenuItem_SaveClick
+      end
+      object MenuItem_SaveAs: TMenuItem
+        Caption = 'Save As...'
+        OnClick = MenuItem_SaveAsClick
+      end
+      object N1: TMenuItem
+        Caption = '-'
+      end
+      object MenuItem_Close: TMenuItem
+        Caption = 'Close'
+        OnClick = MenuItem_CloseClick
       end
     end
   end

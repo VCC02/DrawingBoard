@@ -65,6 +65,18 @@
         <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit>
+      <Unit>
+        <Filename Value="DrawingBoardSchemaEditorFrame.pas"/>
+        <FRMtype Value="400"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="frDrawingBoardSchemaEditor"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Frame"/>
+      </Unit>
+      <Unit>
+        <Filename Value="DrawingBoardSchemaEditorUtils.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -11,7 +11,8 @@ uses
   {$ENDIF}
   Interfaces, // this includes the CT adLCL widgetset
   Forms, DrawingBoardSchemaEditorMainForm, ObjectInspectorFrame, 
-  DrbSchPrjEditorForm;
+  DrbSchPrjEditorForm, DrawingBoardSchemaEditorFrame, 
+DrawingBoardSchemaEditorUtils;
 
 {$R *.res}
 

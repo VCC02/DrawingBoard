@@ -30,56 +30,39 @@ interface
 
 uses
   LCLIntf, LCLType, Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  IniFiles, ObjectInspectorFrame, VirtualTrees, ImgList, Menus, ExtCtrls,
-  StdCtrls;
+  ObjectInspectorFrame, VirtualTrees, ImgList, Menus, ExtCtrls,
+  StdCtrls, ComCtrls, DrawingBoardSchemaEditorUtils;
 
 type
-  TStringArr = array of string;
-  TStructureType = (stCountable, stCode, stMisc);
-  //-  0 = Countable (i.e. array of structure. See ComponentPropertiesSchema).
-  //-  1 = Code (flat lines of code, no structure).
-  //-  2 = Misc keys (see ComponentRegistration).
-
-  TSchemaAttrItem = record
-    Value: string;
-    EditorType: string;
-  end;
-
-  TSchemaAttrItemArr = array of TSchemaAttrItem;
-
-  TSchemaCategory = record
-    Name: string;
-    CategoryComment: string;
-    Item_CountKey: string; //name of the "Count" key
-    CategoryEnabled: Boolean;
-    Items: TSchemaAttrItemArr;
-    StructureType: TStructureType;
-  end;
-
-  TSchemaCategoryArr = array of TSchemaCategory;
-
-  TDrawingBoardSchema = record
-    FileTitle: string;
-    Categories: TSchemaCategoryArr;
-    FileDescription: TStringArr;
-    PredefinedDataTypes: TStringArr;
-  end;
-
 
   { TfrmDrbSchPrjEditor }
 
   TfrmDrbSchPrjEditor = class(TForm)
     lblInfo: TLabel;
+    MenuItem_Close: TMenuItem;
+    N1: TMenuItem;
+    MenuItem_SaveAs: TMenuItem;
+    MenuItem_Save: TMenuItem;
     MenuItem_Open: TMenuItem;
     MenuItem_New: TMenuItem;
     MenuItem_File: TMenuItem;
     mmDrbSch: TMainMenu;
     pnlSchemaProjOI: TPanel;
+    StatusBar1: TStatusBar;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure MenuItem_CloseClick(Sender: TObject);
+    procedure MenuItem_NewClick(Sender: TObject);
     procedure MenuItem_OpenClick(Sender: TObject);
+    procedure MenuItem_SaveAsClick(Sender: TObject);
+    procedure MenuItem_SaveClick(Sender: TObject);
   private
     FOIFrame: TfrObjectInspector;
-    FDrawingBoardSchemaProject: TDrawingBoardSchema; //this doesn't have to match the schema project from the main window
+    FDrawingBoardMetaSchema: TDrawingBoardMetaSchema; //this doesn't have to match the metaschema used in main window
+    FProjectFilename: string;
+    FModified: Boolean;
+
+    procedure SetModified(Value: Boolean);
 
     function HandleOnOIGetCategoryCount: Integer;
     function HandleOnOIGetCategory(AIndex: Integer): string;
@@ -139,18 +122,14 @@ type
     procedure HandleOnOIDragOver(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex, SrcNodeLevel, SrcCategoryIndex, SrcPropertyIndex, SrcPropertyItemIndex: Integer; Shift: TShiftState; State: TDragState; const Pt: TPoint; Mode: TDropMode; var Effect: DWORD; var Accept: Boolean);
     procedure HandleOnOIDragDrop(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex, SrcNodeLevel, SrcCategoryIndex, SrcPropertyIndex, SrcPropertyItemIndex: Integer; Shift: TShiftState; const Pt: TPoint; var Effect: DWORD; Mode: TDropMode);
 
+    property Modified: Boolean read FModified write SetModified;
   public
-
+    procedure ClearContent;
   end;
 
-procedure LoadDrawingBoardSchemaProject(AFnm: string; var ADrawingBoardSchema: TDrawingBoardSchema);
 
 var
   frmDrbSchPrjEditor: TfrmDrbSchPrjEditor;
-
-const
-  CStructureTypeStr: array[TStructureType] of string = ('Countable', 'Code', 'Misc');
-  CIndexReplacement = '~Index~';
 
 
 implementation
@@ -164,60 +143,14 @@ const
   PredefinedDataTypes = 2;
 
 
-procedure LoadDrawingBoardSchemaProject(AFnm: string; var ADrawingBoardSchema: TDrawingBoardSchema);
-var
-  Ini: TMemIniFile;
-  i, j: Integer;
-  TempIndent, Prefix: string;
-begin
-  Ini := TMemIniFile.Create(AFnm);
-  try
-    ADrawingBoardSchema.FileTitle := Ini.ReadString('Settings', 'Title', 'File title');
-    SetLength(ADrawingBoardSchema.Categories, Ini.ReadInteger('Settings', 'CategoryCount', 0));
-
-    for i := 0 to Length(ADrawingBoardSchema.Categories) - 1 do
-    begin
-      TempIndent := 'Cat_' + IntToStr(i);
-      ADrawingBoardSchema.Categories[i].Name := Ini.ReadString(TempIndent, 'Name', TempIndent);
-      ADrawingBoardSchema.Categories[i].CategoryComment := Ini.ReadString(TempIndent, 'CategoryComment', '');
-      ADrawingBoardSchema.Categories[i].Item_CountKey := Ini.ReadString(TempIndent, 'Item_CountKey', 'Count');
-      ADrawingBoardSchema.Categories[i].CategoryEnabled := Ini.ReadBool(TempIndent, 'CategoryEnabled', True);
-      ADrawingBoardSchema.Categories[i].StructureType := TStructureType(Ini.ReadInteger(TempIndent, 'StructureType', Ord(stCountable)) and 3);
-      SetLength(ADrawingBoardSchema.Categories[i].Items, Ini.ReadInteger(TempIndent, 'CountableCount', 0));
-
-      for j := 0 to Length(ADrawingBoardSchema.Categories[i].Items) - 1 do
-      begin
-        Prefix := 'Item_' + IntToStr(j);
-        ADrawingBoardSchema.Categories[i].Items[j].Value := Ini.ReadString(TempIndent, Prefix, Prefix);
-        ADrawingBoardSchema.Categories[i].Items[j].EditorType := Ini.ReadString(TempIndent, Prefix + '_EditorType', 'Text');
-      end;
-    end;
-
-    SetLength(ADrawingBoardSchema.FileDescription, Ini.ReadInteger('FileDescription', 'Count', 0));
-    for i := 0 to Length(ADrawingBoardSchema.FileDescription) - 1 do
-    begin
-      TempIndent := 'Line_' + IntToStr(i);
-      ADrawingBoardSchema.FileDescription[i] := Ini.ReadString('FileDescription', TempIndent, '');
-    end;
-
-    SetLength(ADrawingBoardSchema.PredefinedDataTypes, Ini.ReadInteger('PredefinedDataTypes', 'Count', 0));
-    for i := 0 to Length(ADrawingBoardSchema.PredefinedDataTypes) - 1 do
-    begin
-      TempIndent := 'DT_' + IntToStr(i);
-      ADrawingBoardSchema.PredefinedDataTypes[i] := Ini.ReadString('PredefinedDataTypes', TempIndent, '');
-    end;
-  finally
-    Ini.Free;
-  end;
-end;
-
-
 { TfrmDrbSchPrjEditor }
 
 procedure TfrmDrbSchPrjEditor.FormCreate(Sender: TObject);
 begin
-  FDrawingBoardSchemaProject.FileTitle := '';
-  SetLength(FDrawingBoardSchemaProject.Categories, 0);
+  FDrawingBoardMetaSchema.FileTitle := '';
+  SetLength(FDrawingBoardMetaSchema.Categories, 0);
+  FProjectFilename := '';
+  FModified := False;
 
   FOIFrame := TfrObjectInspector.Create(Self);
   FOIFrame.Left := 0;
@@ -268,8 +201,41 @@ begin
   FOIFrame.DataTypeVisible := False;
   FOIFrame.ExtraInfoVisible := False;
   FOIFrame.PropertyItemHeight := 22; //50;  //this should be 50 for bitmaps
-  FOIFrame.ColumnWidths[0] := 288;
+  FOIFrame.ColumnWidths[0] := 330;
   FOIFrame.ColumnWidths[1] := 800;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.FormDestroy(Sender: TObject);
+begin
+  ClearContent;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.SetModified(Value: Boolean);
+begin
+  if FModified <> Value then
+  begin
+    FModified := Value;
+    StatusBar1.Panels.Items[0].Text := BoolToStr(Value, 'Modified', '');
+  end;
+
+  StatusBar1.Panels.Items[1].Text := FProjectFilename;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.ClearContent;
+begin
+  ClearDrawingBoardMetaSchema(FDrawingBoardMetaSchema);
+  FOIFrame.ReloadContent;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_NewClick(Sender: TObject);
+begin
+  ClearContent;
+  FProjectFilename := '';
+  Modified := False;
 end;
 
 
@@ -277,21 +243,22 @@ procedure TfrmDrbSchPrjEditor.MenuItem_OpenClick(Sender: TObject);
 var
   TempOpenDialog: TOpenDialog;
 begin
-  //if Modified then
-  //begin
-  //  MessageBox(Handle, 'The project is modified. Please save or discard it, before loading a new schema file.', PChar(Application.Title), MB_ICONINFORMATION);
-  //  Exit;
-  //end;
+  if Modified then
+  begin
+    MessageBox(Handle, 'The file is modified. Please save or discard it, before loading a new metaschema file.', PChar(Application.Title), MB_ICONINFORMATION);
+    Exit;
+  end;
 
   TempOpenDialog := TOpenDialog.Create(Self);
   try
-    TempOpenDialog.Filter := 'DrawingBoard schema file (*.drbsch)|*.drbsch|All Files (*.*)|*.*';
+    TempOpenDialog.Filter := 'DrawingBoard metaschema (*.drbsch)|*.drbsch|All Files (*.*)|*.*';
     if not TempOpenDialog.Execute then
       Exit;
 
-    //ClearProject;
+    FProjectFilename := TempOpenDialog.FileName;
 
-    LoadDrawingBoardSchemaProject(TempOpenDialog.FileName, FDrawingBoardSchemaProject);
+    ClearContent;
+    LoadDrawingBoardMetaSchema(FProjectFilename, FDrawingBoardMetaSchema);
   finally
     TempOpenDialog.Free;
   end;
@@ -300,11 +267,60 @@ begin
 end;
 
 
+procedure TfrmDrbSchPrjEditor.MenuItem_SaveClick(Sender: TObject);
+var
+  TempSaveDialog: TSaveDialog;
+begin
+  if FProjectFilename = '' then
+  begin
+    TempSaveDialog := TSaveDialog.Create(Self);
+    try
+      if not TempSaveDialog.Execute then
+        Exit;
+
+      FProjectFilename := TempSaveDialog.FileName;
+      SaveDrawingBoardMetaSchema(TempSaveDialog.FileName, FDrawingBoardMetaSchema);
+    finally
+      TempSaveDialog.Free;
+    end;
+  end
+  else
+    SaveDrawingBoardMetaSchema(FProjectFilename, FDrawingBoardMetaSchema);
+
+  Modified := False;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_SaveAsClick(Sender: TObject);
+var
+  TempSaveDialog: TSaveDialog;
+begin
+  TempSaveDialog := TSaveDialog.Create(Self);
+  try
+    if not TempSaveDialog.Execute then
+      Exit;
+
+    FProjectFilename := TempSaveDialog.FileName;
+    SaveDrawingBoardMetaSchema(FProjectFilename, FDrawingBoardMetaSchema);
+  finally
+    TempSaveDialog.Free;
+  end;
+
+  Modified := False;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_CloseClick(Sender: TObject);
+begin
+  Close;
+end;
+
+
 ////////////////////////////
 
 function TfrmDrbSchPrjEditor.HandleOnOIGetCategoryCount: Integer;
 begin
-  Result := Length(FDrawingBoardSchemaProject.Categories) + 3; //3: [FileDescription], [Settings], [PredefinedDataTypes]
+  Result := Length(FDrawingBoardMetaSchema.Categories) + 3; //3: [FileDescription], [Settings], [PredefinedDataTypes]
 end;
 
 
@@ -321,7 +337,7 @@ begin
       Result := '[PredefinedDataTypes]';
 
     else
-      Result := '[Cat_' + IntToStr(AIndex - 3) + ']   ' + FDrawingBoardSchemaProject.Categories[AIndex - 3].Name;
+      Result := '[Cat_' + IntToStr(AIndex - 3) + ']   ' + FDrawingBoardMetaSchema.Categories[AIndex - 3].Name;
   end;
 end;
 
@@ -329,7 +345,7 @@ end;
 function TfrmDrbSchPrjEditor.HandleOnOIGetCategoryValue(ACategoryIndex: Integer; var AEditorType: TOIEditorType): string;
 begin
   Result := '';
-  AEditorType := etTextWithArrow;
+  AEditorType := etUserEditor;
 end;
 
 
@@ -337,18 +353,18 @@ function TfrmDrbSchPrjEditor.HandleOnOIGetPropertyCount(ACategoryIndex: Integer)
 begin
   case ACategoryIndex of
     CFileDescription_CatIdx:
-      Result := Length(FDrawingBoardSchemaProject.FileDescription);
+      Result := Length(FDrawingBoardMetaSchema.FileDescription);
 
     CSettings_CatIdx:
       Result := 2; // Title, CategoryCount
 
     PredefinedDataTypes:
-      Result := Length(FDrawingBoardSchemaProject.PredefinedDataTypes);
+      Result := Length(FDrawingBoardMetaSchema.PredefinedDataTypes);
 
     else
     begin
       ACategoryIndex := ACategoryIndex - 3;
-      Result := Length(FDrawingBoardSchemaProject.Categories[ACategoryIndex].Items) + 5;
+      Result := Length(FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items) + 5;
     end;
   end;
 end;
@@ -386,7 +402,7 @@ begin
           ACategoryIndex := ACategoryIndex - 3;
           APropertyIndex := APropertyIndex - 5;
 
-          TempAttr := FDrawingBoardSchemaProject.Categories[ACategoryIndex].Items[APropertyIndex].Value;
+          TempAttr := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].Value;
           Result := StringReplace(TempAttr, CIndexReplacement, IntToStr(APropertyIndex), [rfReplaceAll]);
         end;
       end;
@@ -400,8 +416,8 @@ begin
   case ACategoryIndex of
     CFileDescription_CatIdx:
     begin
-      Result := FDrawingBoardSchemaProject.FileDescription[APropertyIndex];
-      AEditorType := etUserEditor;
+      Result := FDrawingBoardMetaSchema.FileDescription[APropertyIndex];
+      AEditorType := etTextWithArrow;
     end;
 
     CSettings_CatIdx:
@@ -409,13 +425,13 @@ begin
       case APropertyIndex of
         0:
         begin
-          Result := FDrawingBoardSchemaProject.FileTitle;
+          Result := FDrawingBoardMetaSchema.FileTitle;
           AEditorType := etTextWithArrow;
         end;
 
         1:
         begin
-          Result := IntToStr(Length(FDrawingBoardSchemaProject.Categories));
+          Result := IntToStr(Length(FDrawingBoardMetaSchema.Categories));
           AEditorType := etNone;
         end;
       end;
@@ -423,7 +439,7 @@ begin
 
     PredefinedDataTypes:
     begin
-      Result := FDrawingBoardSchemaProject.PredefinedDataTypes[APropertyIndex];
+      Result := FDrawingBoardMetaSchema.PredefinedDataTypes[APropertyIndex];
       AEditorType := etEnumCombo;
     end
 
@@ -433,31 +449,31 @@ begin
       case APropertyIndex of
         0:
         begin
-          Result := FDrawingBoardSchemaProject.Categories[ACategoryIndex].Name;
+          Result := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Name;
           AEditorType := etTextWithArrow;
         end;
 
         1:
         begin
-          Result := FDrawingBoardSchemaProject.Categories[ACategoryIndex].CategoryComment;
+          Result := FDrawingBoardMetaSchema.Categories[ACategoryIndex].CategoryComment;
           AEditorType := etTextWithArrow;
         end;
 
         2:
         begin
-          Result := FDrawingBoardSchemaProject.Categories[ACategoryIndex].Item_CountKey;
+          Result := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Item_CountKey;
           AEditorType := etTextWithArrow;
         end;
 
         3:
         begin
-          Result := BoolToStr(FDrawingBoardSchemaProject.Categories[ACategoryIndex].CategoryEnabled, 'True', 'False');
+          Result := BoolToStr(FDrawingBoardMetaSchema.Categories[ACategoryIndex].CategoryEnabled, 'True', 'False');
           AEditorType := etBooleanCombo;
         end;
 
         4:
         begin
-          Result := CStructureTypeStr[FDrawingBoardSchemaProject.Categories[ACategoryIndex].StructureType];
+          Result := CStructureTypeStr[FDrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType];
           AEditorType := etEnumCombo;
         end;
 
@@ -530,10 +546,14 @@ begin
       ACategoryIndex := ACategoryIndex - 3;
       APropertyIndex := APropertyIndex - 5;
 
-      TempEditorType := FDrawingBoardSchemaProject.Categories[ACategoryIndex].Items[APropertyIndex].EditorType;
-      TempAttr := FDrawingBoardSchemaProject.Categories[ACategoryIndex].Items[APropertyIndex].Value;
+      TempEditorType := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].EditorType;
+      TempAttr := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].Value;
       Result := BoolToStr(AItemIndex and 1 = 1, TempEditorType, TempAttr);
-      AEditorType := etEnumCombo;
+
+      if AItemIndex and 1 = 1 then
+        AEditorType := etEnumCombo
+      else
+        AEditorType := etTextWithArrow;
     end;
   end;
 end;
@@ -560,7 +580,111 @@ end;
 
 procedure TfrmDrbSchPrjEditor.HandleOnOIEditedText(ANodeLevel, ACategoryIndex, APropertyIndex, AItemIndex: Integer; ANewText: string);
 begin
-  //DoOnTriggerOnControlsModified;
+  case ANodeLevel of
+    0:;
+
+    1: //property
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+        begin
+          FDrawingBoardMetaSchema.FileDescription[APropertyIndex] := ANewText;
+          //AEditorType := etUserEditor;
+        end;
+
+        CSettings_CatIdx:
+        begin
+          case APropertyIndex of
+            0:
+            begin
+              FDrawingBoardMetaSchema.FileTitle := ANewText;
+              //AEditorType := etTextWithArrow;
+            end;
+
+            1:
+            begin
+              //no editor here  (number of categories)
+              //AEditorType := etNone;
+            end;
+          end;
+        end;
+
+        PredefinedDataTypes:
+        begin
+          FDrawingBoardMetaSchema.PredefinedDataTypes[APropertyIndex] := ANewText;
+          //AEditorType := etEnumCombo;
+        end
+
+        else
+        begin
+          ACategoryIndex := ACategoryIndex - 3;
+          case APropertyIndex of
+            0:
+            begin
+              FDrawingBoardMetaSchema.Categories[ACategoryIndex].Name := ANewText;
+              //AEditorType := etTextWithArrow;
+            end;
+
+            1:
+            begin
+              FDrawingBoardMetaSchema.Categories[ACategoryIndex].CategoryComment := ANewText;
+              //AEditorType := etTextWithArrow;
+            end;
+
+            2:
+            begin
+              FDrawingBoardMetaSchema.Categories[ACategoryIndex].Item_CountKey := ANewText;
+              //AEditorType := etTextWithArrow;
+            end;
+
+            3:
+            begin
+              FDrawingBoardMetaSchema.Categories[ACategoryIndex].CategoryEnabled := ANewText = 'True';
+              //AEditorType := etBooleanCombo;
+            end;
+
+            4:
+            begin
+              FDrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType := StrToTStructureType(ANewText);
+              //AEditorType := etEnumCombo;
+            end;
+
+            else
+              ;
+          end;
+        end;
+      end;
+    end; //1:
+
+    2: //property item
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+          ;
+
+        CSettings_CatIdx:
+          ;
+
+        PredefinedDataTypes:
+          ;
+
+        else
+        begin
+          ACategoryIndex := ACategoryIndex - 3;
+          APropertyIndex := APropertyIndex - 5;
+
+          if AItemIndex and 1 = 1 then
+            FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].EditorType := ANewText
+          else
+            FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].Value := ANewText;
+
+          //AEditorType := etEnumCombo;
+        end;
+      end;
+    end; //2:
+  end;
+
+  Modified := True;
 end;
 
 
@@ -587,13 +711,163 @@ function TfrmDrbSchPrjEditor.HandleOnOIGetEnumConstsCount(ANodeLevel, ACategoryI
 begin
   Result := 0;
 
+  case ANodeLevel of
+    0:;
+
+    1: //property
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+          ;
+
+        CSettings_CatIdx:
+          ;
+
+        PredefinedDataTypes:
+          Result := Length(FDrawingBoardMetaSchema.PredefinedDataTypes);  //////////////////ToDo this should be the length of the cached list
+
+        else
+        begin
+          ACategoryIndex := ACategoryIndex - 3;
+          case APropertyIndex of
+            3:
+              Result := 2;   //CategoryEnabled
+
+            4:
+              Result := Integer(High(TStructureType)) + 1;   //StructureType
+
+            else
+              ;
+          end;
+        end;
+      end;
+    end; //1:
+
+    2: //property item
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+          ;
+
+        CSettings_CatIdx:
+          ;
+
+        PredefinedDataTypes:
+          ;
+
+        else
+        begin
+          //ACategoryIndex := ACategoryIndex - 3;
+          //APropertyIndex := APropertyIndex - 5;
+
+          if AItemIndex and 1 = 1 then
+            Result := 13    //EditorType
+          else
+            Result := 0;  //probably these strings can be cached and displayed as Enum, but for now, they have to be filled-in manually
+        end;
+      end;
+    end; //2:
+  end;
 end;
 
 
 procedure TfrmDrbSchPrjEditor.HandleOnOIGetEnumConst(ANodeLevel, ACategoryIndex, APropertyIndex, AItemIndex, AEnumItemIndex: Integer; var AEnumItemName: string);
 begin
   AEnumItemName := '';
+  case ANodeLevel of
+    1: //property
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+        begin
+          //AEditorType := etUserEditor;
+        end;
 
+        CSettings_CatIdx:
+        begin
+          case APropertyIndex of
+            0:
+            begin
+              //AEditorType := etTextWithArrow;
+            end;
+
+            1:
+            begin
+              //no editor here  (number of categories)
+              //AEditorType := etNone;
+            end;
+          end;
+        end;
+
+        PredefinedDataTypes:
+        begin
+          //FDrawingBoardMetaSchema.PredefinedDataTypes[APropertyIndex] := ANewText;
+          //AEditorType := etEnumCombo;
+          //Result := Length(FDrawingBoardMetaSchema.PredefinedDataTypes);
+          AEnumItemName := FDrawingBoardMetaSchema.PredefinedDataTypes[AEnumItemIndex];  //////////////////ToDo: this should be a cached list, not the "live" one (i.e. .PredefinedDataTypes), because when editing the live list, the items may be lost
+        end
+
+        else
+        begin
+          ACategoryIndex := ACategoryIndex - 3;
+          case APropertyIndex of
+            3:
+            begin
+              //FDrawingBoardMetaSchema.Categories[ACategoryIndex].CategoryEnabled := ANewText = 'True';
+              //Result := 2;
+              //AEditorType := etBooleanCombo;
+              AEnumItemName := BoolToStr(AEnumItemIndex = 1);
+            end;
+
+            4:
+            begin
+              //FDrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType := StrToTStructureType(ANewText);
+              //Result := Integer(High(TStructureType)) + 1;
+              //AEditorType := etEnumCombo;
+              AEnumItemName := CStructureTypeStr[TStructureType(AEnumItemIndex)];
+            end;
+
+            else
+              ;
+          end;
+        end;
+      end;
+    end; //1:
+
+    2: //property item
+    begin
+      case ACategoryIndex of
+        CFileDescription_CatIdx:
+          ;
+
+        CSettings_CatIdx:
+          ;
+
+        PredefinedDataTypes:
+          ;
+
+        else
+        begin
+          ACategoryIndex := ACategoryIndex - 3;
+          APropertyIndex := APropertyIndex - 5;
+
+          if AItemIndex and 1 = 1 then
+          begin
+            //FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].EditorType := ANewText
+            //probably these strings can be cached and displayed as Enum, but for now, they have to be filled-in manually
+            AEnumItemName := Copy(COIEditorTypeStr[TOIEditorType(AEnumItemIndex)], 3, MaxInt);
+          end
+          else
+          begin
+            //FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[APropertyIndex].Value := ANewText;
+          end;
+
+
+          //AEditorType := etEnumCombo;
+        end;
+      end;
+    end; //2:
+  end;
 end;
 
 
