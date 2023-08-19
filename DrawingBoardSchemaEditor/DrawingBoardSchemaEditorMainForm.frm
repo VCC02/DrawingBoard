@@ -12,10 +12,10 @@ object frmDrawingBoardSchemaEditorMain: TfrmDrawingBoardSchemaEditorMain
   LCLVersion = '7.5'
   object pnlSchemaFrame: TPanel
     Left = 0
-    Height = 472
+    Height = 488
     Top = 0
     Width = 1184
-    Anchors = [akTop, akLeft, akBottom]
+    Anchors = [akTop, akLeft, akRight, akBottom]
     Caption = 'pnlSchemaFrame'
     TabOrder = 0
   end
@@ -76,5 +76,12 @@ object frmDrawingBoardSchemaEditorMain: TfrmDrawingBoardSchemaEditorMain
         OnClick = MenuItem_OpenSchemaProjectEditorClick
       end
     end
+  end
+  object tmrStartup: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = tmrStartupTimer
+    Left = 616
+    Top = 80
   end
 end

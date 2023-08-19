@@ -3,8 +3,10 @@ object frDrawingBoardSchemaEditor: TfrDrawingBoardSchemaEditor
   Height = 475
   Top = 0
   Width = 1190
+  Anchors = [akTop, akLeft, akRight]
   ClientHeight = 475
   ClientWidth = 1190
+  OnResize = FrameResize
   TabOrder = 0
   DesignLeft = 86
   DesignTop = 85
@@ -18,10 +20,10 @@ object frDrawingBoardSchemaEditor: TfrDrawingBoardSchemaEditor
     TabOrder = 0
   end
   inline synedtCode: TSynEdit
-    Left = 616
+    Left = 621
     Height = 448
     Top = 0
-    Width = 560
+    Width = 563
     Anchors = [akTop, akLeft, akRight, akBottom]
     Font.Height = -13
     Font.Name = 'Courier New'
@@ -34,6 +36,7 @@ object frDrawingBoardSchemaEditor: TfrDrawingBoardSchemaEditor
     Gutter.MouseActions = <>
     RightGutter.Width = 0
     RightGutter.MouseActions = <>
+    Highlighter = SynPasSyn1
     Keystrokes = <    
       item
         Command = ecUp
@@ -515,12 +518,26 @@ object frDrawingBoardSchemaEditor: TfrDrawingBoardSchemaEditor
     end
   end
   object lblSpacingInfo: TLabel
-    Left = 552
+    Left = 546
     Height = 15
     Top = 456
     Width = 638
     Anchors = [akLeft, akBottom]
     Caption = 'The "'#7'" character is used at the beginning of a line, instead of a blank, because starting blanks are trimmed by ini parsing.'
+  end
+  object pnlHorizSplitter: TPanel
+    Cursor = crHSplit
+    Left = 609
+    Height = 448
+    Top = 0
+    Width = 11
+    Anchors = [akTop, akLeft, akBottom]
+    Color = 13041606
+    ParentColor = False
+    TabOrder = 2
+    OnMouseDown = pnlHorizSplitterMouseDown
+    OnMouseMove = pnlHorizSplitterMouseMove
+    OnMouseUp = pnlHorizSplitterMouseUp
   end
   object SynPasSyn1: TSynPasSyn
     Enabled = False

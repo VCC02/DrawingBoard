@@ -30,7 +30,7 @@ interface
 
 uses
   LCLIntf, LCLType, Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
-  ObjectInspectorFrame, VirtualTrees, ImgList, Menus, ExtCtrls,
+  ObjectInspectorFrame, VirtualTrees, ImgList, Menus, ExtCtrls, IniFiles,
   StdCtrls, ComCtrls, DrawingBoardSchemaEditorUtils;
 
 type
@@ -125,6 +125,9 @@ type
     property Modified: Boolean read FModified write SetModified;
   public
     procedure ClearContent;
+
+    procedure LoadSettings(AIni: TMemIniFile);
+    procedure SaveSettings(AIni: TMemIniFile);
   end;
 
 
@@ -228,6 +231,24 @@ procedure TfrmDrbSchPrjEditor.ClearContent;
 begin
   ClearDrawingBoardMetaSchema(FDrawingBoardMetaSchema);
   FOIFrame.ReloadContent;
+end;
+
+
+procedure TfrmDrbSchPrjEditor.LoadSettings(AIni: TMemIniFile);
+begin
+  Left := AIni.ReadInteger('DrbSchPrjEditor.Settings', 'Left', Left);
+  Top := AIni.ReadInteger('DrbSchPrjEditor.Settings', 'Top', Top);
+  Width := AIni.ReadInteger('DrbSchPrjEditor.Settings', 'Width', Width);
+  Height := AIni.ReadInteger('DrbSchPrjEditor.Settings', 'Height', Height);
+end;
+
+
+procedure TfrmDrbSchPrjEditor.SaveSettings(AIni: TMemIniFile);
+begin
+  AIni.WriteInteger('DrbSchPrjEditor.Settings', 'Left', Left);
+  AIni.WriteInteger('DrbSchPrjEditor.Settings', 'Top', Top);
+  AIni.WriteInteger('DrbSchPrjEditor.Settings', 'Width', Width);
+  AIni.WriteInteger('DrbSchPrjEditor.Settings', 'Height', Height);
 end;
 
 

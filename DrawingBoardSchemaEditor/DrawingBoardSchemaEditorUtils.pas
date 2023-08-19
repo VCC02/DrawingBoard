@@ -73,6 +73,8 @@ function StrToTStructureType(AStr: string): TStructureType;
 const
   CStructureTypeStr: array[TStructureType] of string = ('Countable', 'Code', 'Misc');
   CIndexReplacement = '~Index~';
+  CSelfDir = '$SelfDir$';
+  CDrawingBoardMetaSchemaKeyName = 'DrawingBoardMetaSchema'; //used by schema and metaschema files
 
 
 implementation

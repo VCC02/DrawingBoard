@@ -50,6 +50,7 @@ type
     mmMain: TMainMenu;
     pnlSchemaFrame: TPanel;
     StatusBar1: TStatusBar;
+    tmrStartup: TTimer;
 
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
@@ -60,10 +61,14 @@ type
     procedure MenuItem_SaveAsClick(Sender: TObject);
     procedure MenuItem_SaveClick(Sender: TObject);
     procedure MenuItem_SetSchemaFromFileClick(Sender: TObject);
+    procedure tmrStartupTimer(Sender: TObject);
   private
     FfrDrawingBoardSchemaEditor: TfrDrawingBoardSchemaEditor;
 
     FModified: Boolean;
+
+    procedure LoadSettings;
+    procedure SaveSettings;
 
     procedure SetModified(Value: Boolean);
     procedure ClearProject;
@@ -79,18 +84,25 @@ var
   frmDrawingBoardSchemaEditorMain: TfrmDrawingBoardSchemaEditorMain;
 
 {Schema Frame - ToDo
-- Add splitter
-- Implement adding and removing items from categories  -  Misc
+- The DataType attribute should have a menu with predefined datatypes
+- DynTFTCG knows how to inherit datatypes from baseschema (it concatenates two lists). The editor should solve this somehow, because it has to display a list as Enum.
+- there should be a new extension for schema files (in addition to .dynscm) which should be used as filter in open/save dialogs. Based on this extension the app should add it to files which have no extension on save.
+- The [OneTimeComponentInitCode] section is no used by CG. It has to be removed from dynscm files.
+- the DrawingBoardMetaSchemaFileName field has to be updated when updating the FileName property of DrawingBoard category  and <->   - see SetMetaSchemaFromFile - there is a ToDo item
+- Add a tooltip to the FileName property, under the DrawingBoardMetaSchema category, about the $SelfDir$ replacement.
 
 //MetaSchema - ToDo
 [in work] - Implement editor handlers
-- There is a ToDo item in HandleOnOIGetEnumConst about using a chached list, to display the contents of an enum.
+- There is a ToDo item in HandleOnOIGetEnumConst about using a cached list, to display the contents of an enum.
 - Implement adding and removing items from various properties or list of properties or adding/removing categories of Cat_# type.
 }
 
 implementation
 
 {$R *.frm}
+
+uses
+  IniFiles, DrawingBoardSchemaEditorUtils;
 
 const
   CPropertyNameString = '~Index~_Name'; //should be moved to a variable, read from app's settings file
@@ -111,6 +123,8 @@ begin
 
   FfrDrawingBoardSchemaEditor.PropertyNameString := CPropertyNameString;
   FfrDrawingBoardSchemaEditor.OnDrawingBoardModified := HandleOnDrawingBoardModified;
+
+  tmrStartup.Enabled := True;
 end;
 
 
@@ -151,6 +165,11 @@ begin
   end;
 
   Modified := False;
+
+  try
+    SaveSettings;
+  except
+  end;
 end;
 
 
@@ -163,6 +182,44 @@ begin
   end;
 
   StatusBar1.Panels.Items[1].Text := FfrDrawingBoardSchemaEditor.Project.ProjectFileName;
+end;
+
+
+procedure TfrmDrawingBoardSchemaEditorMain.LoadSettings;
+var
+  Ini: TMemIniFile;
+begin
+  Ini := TMemIniFile.Create(ExtractFilePath(ParamStr(0)) + 'DrawingBoardSchemaEditor.ini');
+  try
+    Left := Ini.ReadInteger('Settings', 'Left', Left);
+    Top := Ini.ReadInteger('Settings', 'Top', Top);
+    Width := Ini.ReadInteger('Settings', 'Width', Width);
+    Height := Ini.ReadInteger('Settings', 'Height', Height);
+
+    frmDrbSchPrjEditor.LoadSettings(Ini);
+  finally
+    Ini.Free;
+  end;
+end;
+
+
+procedure TfrmDrawingBoardSchemaEditorMain.SaveSettings;
+var
+  Ini: TMemIniFile;
+begin
+  Ini := TMemIniFile.Create(ExtractFilePath(ParamStr(0)) + 'DrawingBoardSchemaEditor.ini');
+  try
+    Ini.WriteInteger('Settings', 'Left', Left);
+    Ini.WriteInteger('Settings', 'Top', Top);
+    Ini.WriteInteger('Settings', 'Width', Width);
+    Ini.WriteInteger('Settings', 'Height', Height);
+
+    frmDrbSchPrjEditor.SaveSettings(Ini);
+
+    Ini.UpdateFile;
+  finally
+    Ini.Free;
+  end;
 end;
 
 
@@ -193,6 +250,13 @@ begin
   finally
     TempOpenDialog.Free;
   end;
+end;
+
+
+procedure TfrmDrawingBoardSchemaEditorMain.tmrStartupTimer(Sender: TObject);
+begin
+  tmrStartup.Enabled := False;
+  LoadSettings;
 end;
 
 
@@ -263,6 +327,7 @@ begin
       Exit;
 
     FfrDrawingBoardSchemaEditor.SaveDrawingBoardProject(TempSaveDialog.FileName);
+    MessageBox(Handle, PChar('Make sure you update the FilePath property, under ' + CDrawingBoardMetaSchemaKeyName + ' category.'), PChar(Application.Title), MB_ICONINFORMATION);
   finally
     TempSaveDialog.Free;
   end;

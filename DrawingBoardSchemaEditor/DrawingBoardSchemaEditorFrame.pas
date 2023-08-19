@@ -56,19 +56,30 @@ type
     MenuItem_RemoveAllProperties: TMenuItem;
     MenuItem_RemoveProperty: TMenuItem;
     MenuItem_AddProperty: TMenuItem;
+    pnlHorizSplitter: TPanel;
     pnlSchemaOI: TPanel;
     pmCategories: TPopupMenu;
     pmProperties: TPopupMenu;
     synedtCode: TSynEdit;
     SynPasSyn1: TSynPasSyn;
 
+    procedure FrameResize(Sender: TObject);
     procedure MenuItem_AddPropertyClick(Sender: TObject);
     procedure MenuItem_RemoveAllPropertiesClick(Sender: TObject);
     procedure MenuItem_RemovePropertyClick(Sender: TObject);
+    procedure pnlHorizSplitterMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure pnlHorizSplitterMouseMove(Sender: TObject; Shift: TShiftState; X,
+      Y: Integer);
+    procedure pnlHorizSplitterMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure synedtCodeChange(Sender: TObject);
   private
     FLastClickedCategory, FLastClickedProperty, FLastClickedPropertyItem: Integer;
     FPropertyNameString: string;
+    FHold: Boolean;
+    FSplitterMouseDownGlobalPos: TPoint;
+    FSplitterMouseDownImagePos: TPoint;
 
     FProject: TDrawingBoardProject;
     FOIFrame: TfrObjectInspector;
@@ -78,6 +89,8 @@ type
     procedure DoOnDrawingBoardModified;
 
     procedure CreateRemainingComponents;
+    procedure ResizeFrameSectionsBySplitter(NewLeft: Integer);
+    procedure MoveProperty(CategoryIndex, SrcPropertyIndex, DestPropertyIndex: Integer);
 
     function HandleOnOIGetCategoryCount: Integer;
     function HandleOnOIGetCategory(AIndex: Integer): string;
@@ -144,6 +157,7 @@ type
     procedure LoadDrawingBoardProject(AFnm: string); //for DynTFTCodeGen, this is a .dynscm file
     procedure SaveDrawingBoardProject(AFnm: string);
     procedure SetMetaSchemaFromFile(ADrbSchemaFnm: string);
+    function GetIndexOfDrawingBoardMetaSchemaCategory: Integer;
 
     property Project: TDrawingBoardProject read FProject write FProject;
     property PropertyNameString: string read FPropertyNameString write FPropertyNameString;
@@ -220,6 +234,8 @@ begin
   SetLength(FProject.DrawingBoardMetaSchema.Categories, 0);
   SetLength(FProject.CategoryContents, 0);
 
+  FHold := False;
+
   CreateRemainingComponents;
 end;
 
@@ -278,9 +294,9 @@ begin
   Ini := TMemIniFile.Create(AFnm);
   try
     FProject.ProjectFileName := AFnm;
-    InitialDBSchFileName := Ini.ReadString('DrawingBoardSchema', 'FileName', '');
+    InitialDBSchFileName := Ini.ReadString(CDrawingBoardMetaSchemaKeyName, 'FileName', '');
     FProject.DrawingBoardMetaSchemaFileName := InitialDBSchFileName;
-    FullDBSchFileName := ExtractFilePath(AFnm) + InitialDBSchFileName;
+    FullDBSchFileName := StringReplace(InitialDBSchFileName, CSelfDir, ExtractFileDir(AFnm), [rfReplaceAll]);
 
     if not FileExists(FullDBSchFileName) then
     begin
@@ -374,13 +390,32 @@ begin
 end;
 
 
+function TfrDrawingBoardSchemaEditor.GetIndexOfDrawingBoardMetaSchemaCategory: Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Length(FProject.DrawingBoardMetaSchema.Categories) - 1 do
+    if FProject.DrawingBoardMetaSchema.Categories[i].Name = CDrawingBoardMetaSchemaKeyName then
+    begin
+      Result := i;
+      Exit;
+    end;
+end;
+
+
 procedure TfrDrawingBoardSchemaEditor.SaveDrawingBoardProject(AFnm: string);
 var
   s: string;
   i, j, k, n: Integer;
   Content: TMemoryStream;
 begin
-  s := '[DrawingBoardSchema]' + #13#10 + 'FileName=' + FProject.DrawingBoardMetaSchemaFileName + #13#10#13#10;
+  if GetIndexOfDrawingBoardMetaSchemaCategory = -1 then
+    s := '[' + CDrawingBoardMetaSchemaKeyName + ']' + #13#10 +
+        'FileName=' + FProject.DrawingBoardMetaSchemaFileName + #13#10#13#10
+  else
+    s := '';
+
   n := Length(FProject.DrawingBoardMetaSchema.Categories);
 
   for i := 0 to n - 1 do
@@ -435,12 +470,19 @@ end;
 
 procedure TfrDrawingBoardSchemaEditor.SetMetaSchemaFromFile(ADrbSchemaFnm: string);
 var
-  CategoryCount, i: Integer;
+  CategoryCount, i, CategoryIndex: Integer;
 begin
   ClearContent;
 
-  FProject.DrawingBoardMetaSchemaFileName := ExtractFileName(ADrbSchemaFnm);
+  FProject.DrawingBoardMetaSchemaFileName := StringReplace(ADrbSchemaFnm, ExtractFileDir(FProject.ProjectFileName), CSelfDir, [rfReplaceAll]);
   LoadDrawingBoardMetaSchema(ADrbSchemaFnm, FProject.DrawingBoardMetaSchema);
+
+  CategoryIndex := GetIndexOfDrawingBoardMetaSchemaCategory;
+  if CategoryIndex <> -1 then
+  begin                /////////////// ToDo  get index of FileName property and update AItemIndex    (it is usually 0)
+    //FProject.CategoryContents[CategoryIndex].Items[0][AItemIndex] := FProject.DrawingBoardMetaSchemaFileName;   //AItemIndex should be the index of FileName property
+    MessageBox(Handle, PChar('Make sure you update the FilePath property, under ' + CDrawingBoardMetaSchemaKeyName + ' category.'), PChar(Application.Title), MB_ICONINFORMATION);
+  end;
 
   CategoryCount := Length(FProject.DrawingBoardMetaSchema.Categories);
   SetLength(FProject.CategoryContents, CategoryCount);
@@ -498,21 +540,43 @@ var
 begin
   TempCategoryIndex := MenuItem_AddProperty.Tag;
 
-  if FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].StructureType <> stCountable then
-    Exit;
+  case FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].StructureType of
+    stCountable:
+    begin
+      n := Length(FProject.CategoryContents[TempCategoryIndex].Items);
+      SetLength(FProject.CategoryContents[TempCategoryIndex].Items, n + 1);
 
-  n := Length(FProject.CategoryContents[TempCategoryIndex].Items);
-  SetLength(FProject.CategoryContents[TempCategoryIndex].Items, n + 1);
+      SetLength(FProject.CategoryContents[TempCategoryIndex].Items[n], Length(FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].Items));
 
-  SetLength(FProject.CategoryContents[TempCategoryIndex].Items[n], Length(FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].Items));
+      if Length(FProject.CategoryContents[TempCategoryIndex].Items[n]) > 0 then
+        FProject.CategoryContents[TempCategoryIndex].Items[n][0] := 'New property';
 
-  if Length(FProject.CategoryContents[TempCategoryIndex].Items[n]) > 0 then
-    FProject.CategoryContents[TempCategoryIndex].Items[n][0] := 'New property';
+      FOIFrame.ReloadContent;
+      FOIFrame.SelectNode(1, TempCategoryIndex, n, -1, True, True);
 
-  FOIFrame.ReloadContent;
-  FOIFrame.SelectNode(1, TempCategoryIndex, n, -1, True, True);
+      DoOnDrawingBoardModified;
+    end;
 
-  DoOnDrawingBoardModified;
+    stMisc:  //The code is somewhat valid, but the misc properties should be added from metaschema.
+    begin    //The property name cannot be edited from here (currently, the object inspector does not support editing property names i.e. the left column)
+      n := Length(FProject.CategoryContents[TempCategoryIndex].Items[0]);
+      SetLength(FProject.CategoryContents[TempCategoryIndex].Items[0], n + 1);
+
+      SetLength(FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].Items, n + 1);
+
+      FProject.CategoryContents[TempCategoryIndex].Items[0][n] := 'New property value';
+      FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[n].Value := 'PropertyNotFoundInMetaSchema';
+      FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[n].EditorType := 'etText';
+
+      FOIFrame.ReloadContent;
+      FOIFrame.SelectNode(1, TempCategoryIndex, 0, n, True, True);
+
+      DoOnDrawingBoardModified;
+    end;
+
+    else
+      ;
+  end;  //case
 end;
 
 
@@ -521,13 +585,16 @@ procedure TfrDrawingBoardSchemaEditor.MenuItem_RemoveAllPropertiesClick(
 var
   TempCategoryIndex, n, i: Integer;
 begin
+  if FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].StructureType <> stCountable then
+  begin
+    MessageBox(Handle, 'Removing properties from this category type, is not supported.', PChar(Application.Title), MB_ICONINFORMATION);
+    Exit;
+  end;
+
   if MessageBox(Handle, 'Are you sure you want to remove all properties from this category?', PChar(Application.Title), MB_ICONQUESTION + MB_YESNO) = IDNO then
     Exit;
 
   TempCategoryIndex := MenuItem_AddProperty.Tag;
-
-  if FProject.DrawingBoardMetaSchema.Categories[TempCategoryIndex].StructureType <> stCountable then
-    Exit;
 
   n := Length(FProject.CategoryContents[TempCategoryIndex].Items);
   for i := 0 to Length(FProject.CategoryContents[TempCategoryIndex].Items[n - 1]) - 1 do
@@ -569,6 +636,94 @@ begin
   FOIFrame.SelectNode(1, TempCategoryIndex, TempPropertyIndex - 1, -1, True, True);
 
   DoOnDrawingBoardModified;
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.pnlHorizSplitterMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if Shift <> [ssLeft] then
+    Exit;
+
+  if not FHold then
+  begin
+    GetCursorPos(FSplitterMouseDownGlobalPos);
+
+    FSplitterMouseDownImagePos.X := pnlHorizSplitter.Left;
+    FHold := True;
+  end;
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.pnlHorizSplitterMouseMove(Sender: TObject;
+  Shift: TShiftState; X, Y: Integer);
+var
+  tp: TPoint;
+  NewLeft: Integer;
+begin
+  if Shift <> [ssLeft] then
+    Exit;
+
+  if not FHold then
+    Exit;
+
+  GetCursorPos(tp);
+  NewLeft := FSplitterMouseDownImagePos.X + tp.X - FSplitterMouseDownGlobalPos.X;
+
+  ResizeFrameSectionsBySplitter(NewLeft);
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.pnlHorizSplitterMouseUp(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  FHold := False;
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.FrameResize(Sender: TObject);
+var
+  NewLeft: Integer;
+begin
+  NewLeft := pnlHorizSplitter.Left;
+
+  if NewLeft > Width - 260 then
+    NewLeft := Width - 260;
+
+  ResizeFrameSectionsBySplitter(NewLeft);
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.ResizeFrameSectionsBySplitter(NewLeft: Integer);
+begin
+  if NewLeft < pnlSchemaOI.Constraints.MinWidth then
+    NewLeft := pnlSchemaOI.Constraints.MinWidth;
+
+  if NewLeft > Width - 260 then
+    NewLeft := Width - 260;
+
+  if NewLeft < 300 then
+    NewLeft := 300;
+
+  pnlHorizSplitter.Left := NewLeft;
+
+  synedtCode.Left := pnlHorizSplitter.Left + pnlHorizSplitter.Width;
+  synedtCode.Width := Width - synedtCode.Left;
+  pnlSchemaOI.Width := pnlHorizSplitter.Left;
+end;
+
+
+procedure TfrDrawingBoardSchemaEditor.MoveProperty(CategoryIndex, SrcPropertyIndex, DestPropertyIndex: Integer);
+var
+  k: Integer;
+  ph: string;
+begin
+  for k := 0 to Length(FProject.CategoryContents[CategoryIndex].Items[SrcPropertyIndex]) - 1 do
+  begin
+    ph := FProject.CategoryContents[CategoryIndex].Items[SrcPropertyIndex][k];
+    FProject.CategoryContents[CategoryIndex].Items[SrcPropertyIndex][k] := FProject.CategoryContents[CategoryIndex].Items[DestPropertyIndex][k];
+    FProject.CategoryContents[CategoryIndex].Items[DestPropertyIndex][k] := ph;
+  end;
 end;
 
 
@@ -647,20 +802,18 @@ begin
       AEditorType := etUserEditor;
     end;
 
-    stMisc:
-    begin
-      Result := '';
-      AEditorType := etNone;
-    end;
-
     stCode:
     begin
       Result := '<click to load code into editor>';
       AEditorType := etNone;
     end;
+
+    stMisc:
+    begin
+      Result := '';
+      AEditorType := etNone;
+    end;
   end;
-
-
 end;
 
 
@@ -708,21 +861,25 @@ end;
 function TfrDrawingBoardSchemaEditor.HandleOnOIGetListPropertyItemValue(ACategoryIndex, APropertyIndex, AItemIndex: Integer; var AEditorType: TOIEditorType): string;
 begin
   Result := '';
-  AEditorType := etTextWithArrow;
 
   case FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType of
     stCountable:
     begin
       Result := FProject.CategoryContents[ACategoryIndex].Items[APropertyIndex][AItemIndex];
-      if FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Items[AItemIndex].EditorType = 'BooleanCombo' then
-        AEditorType := etBooleanCombo;
-
-      if FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Items[AItemIndex].EditorType = 'IntBooleanCombo' then
-        AEditorType := etEnumCombo;
+      AEditorType := StrToTOIEditorType('et' + FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Items[AItemIndex].EditorType);
     end;
 
-    stCode, stMisc:
+    stCode:
+    begin
       Result := FProject.CategoryContents[ACategoryIndex].Items[0][AItemIndex];
+      AEditorType := etNone;
+    end;
+
+    stMisc:
+    begin
+      Result := FProject.CategoryContents[ACategoryIndex].Items[0][AItemIndex];
+      AEditorType := StrToTOIEditorType('et' + FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Items[AItemIndex].EditorType);
+    end;
   end;
 end;
 
@@ -755,7 +912,16 @@ begin
     stCode:;
 
     stMisc:
+    begin
       FProject.CategoryContents[ACategoryIndex].Items[0][AItemIndex] := ANewText;
+
+      if FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Name = CDrawingBoardMetaSchemaKeyName then
+      begin
+        FProject.DrawingBoardMetaSchemaFileName := ANewText;
+        //FProject.DrawingBoardMetaSchemaFileName := resolve path in FProject.DrawingBoardMetaSchemaFileName by replacing ExtractFileDir(FProject.ProjectFileName) with CSelfDir
+        //FProject.CategoryContents[ACategoryIndex].Items[0][AItemIndex] := FProject.DrawingBoardMetaSchemaFileName;
+      end;
+    end;
   end;
 
   FOIFrame.RepaintNodeByLevel(ANodeLevel, ACategoryIndex, APropertyIndex, AItemIndex, False);
@@ -900,8 +1066,19 @@ begin
   case ANodeLevel of
     0:
     begin
-      MenuItem_AddProperty.Tag := ACategoryIndex;
-      pmCategories.PopUp;
+      case FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType of
+        stCountable:
+        begin
+          MenuItem_AddProperty.Tag := ACategoryIndex;
+          pmCategories.PopUp;
+        end;
+
+        stCode:
+          ;
+
+        stMisc:
+          MessageBox(Handle, 'Adding/removing misc properties should be done from metaschema editor.', PChar(Application.Title), MB_ICONINFORMATION);
+      end;
     end;
 
     1:
@@ -960,9 +1137,9 @@ end;
 
 procedure TfrDrawingBoardSchemaEditor.HandleOnOIDragAllowed(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex: Integer; var Allowed: Boolean);
 begin
-  Allowed := (CategoryIndex = 0) and
-             (((NodeLevel = CPropertyLevel) and (PropertyItemIndex = -1)) or
-             ((NodeLevel = CPropertyItemLevel) and (PropertyItemIndex > -1)));
+  Allowed := (FProject.DrawingBoardMetaSchema.Categories[CategoryIndex].StructureType = stCountable) and
+             (((NodeLevel = CPropertyLevel) and (PropertyItemIndex = -1)) {or
+             ((NodeLevel = CPropertyItemLevel) and (PropertyItemIndex > -1))} );
 end;
 
 
@@ -971,17 +1148,18 @@ var
   MatchingCategory: Boolean;
   SameSrcAndDest: Boolean;
   DraggingName, DraggingItem: Boolean;
-  IsPropertyLevel, IsPropertyItemLevel: Boolean;
+  IsPropertyLevel: Boolean;
+  //IsPropertyItemLevel: Boolean;
   DraggingFromTheSame: Boolean;
 begin
-  MatchingCategory := CategoryIndex = 0;
+  MatchingCategory := (FProject.DrawingBoardMetaSchema.Categories[CategoryIndex].StructureType = stCountable) and (CategoryIndex = SrcCategoryIndex);
   SameSrcAndDest := NodeLevel = SrcNodeLevel;
   IsPropertyLevel := NodeLevel = CPropertyLevel;
-  IsPropertyItemLevel := NodeLevel = CPropertyItemLevel;
+  //IsPropertyItemLevel := NodeLevel = CPropertyItemLevel;
 
   DraggingName := IsPropertyLevel and (PropertyItemIndex = -1);
-  DraggingItem := IsPropertyItemLevel and (PropertyItemIndex > -1);
-  DraggingFromTheSame := (PropertyIndex = SrcPropertyIndex) and IsPropertyItemLevel;
+  DraggingItem := {IsPropertyItemLevel and} (PropertyItemIndex > -1);
+  DraggingFromTheSame := (PropertyIndex = SrcPropertyIndex) {and IsPropertyItemLevel};
 
   Accept := MatchingCategory and
             SameSrcAndDest and
@@ -991,7 +1169,7 @@ end;
 
 procedure TfrDrawingBoardSchemaEditor.HandleOnOIDragDrop(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex, SrcNodeLevel, SrcCategoryIndex, SrcPropertyIndex, SrcPropertyItemIndex: Integer; Shift: TShiftState; const Pt: TPoint; var Effect: DWORD; Mode: TDropMode);
 begin
-  if not ((CategoryIndex = 0) and (SrcCategoryIndex = 0)) then
+  if not ((FProject.DrawingBoardMetaSchema.Categories[CategoryIndex].StructureType = stCountable) and (CategoryIndex = SrcCategoryIndex)) then
     Exit;
 
   //dragging a property
@@ -999,24 +1177,24 @@ begin
     if (PropertyItemIndex = -1) and (SrcPropertyItemIndex = -1) then
       if PropertyIndex <> SrcPropertyIndex then
       begin
-        //MoveProperty(SrcPropertyIndex, PropertyIndex);
+        MoveProperty(CategoryIndex, SrcPropertyIndex, PropertyIndex);
 
         FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
         FOIFrame.ReloadPropertyItems(SrcCategoryIndex, SrcPropertyIndex, True);
-        //DoOnTriggerOnControlsModified;
+        DoOnDrawingBoardModified;
       end;
 
-  //dragging a property item
-  if (NodeLevel = CPropertyItemLevel) and (SrcNodeLevel = CPropertyItemLevel) then
-    if (PropertyItemIndex > -1) and (SrcPropertyItemIndex > -1) then
-      if PropertyIndex = SrcPropertyIndex then
-        if PropertyItemIndex <> SrcPropertyItemIndex then
-        begin
-          //MovePropertyItem(PropertyIndex, SrcPropertyItemIndex, PropertyItemIndex);
-
-          FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
-          //DoOnTriggerOnControlsModified;
-        end;
+  ////dragging a property item
+  //if (NodeLevel = CPropertyItemLevel) and (SrcNodeLevel = CPropertyItemLevel) then
+  //  if (PropertyItemIndex > -1) and (SrcPropertyItemIndex > -1) then
+  //    if PropertyIndex = SrcPropertyIndex then
+  //      if PropertyItemIndex <> SrcPropertyItemIndex then
+  //      begin
+  //        //MovePropertyItem(PropertyIndex, SrcPropertyItemIndex, PropertyItemIndex);
+  //
+  //        FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
+  //        //DoOnTriggerOnControlsModified;
+  //      end;
 end;
 
 end.
