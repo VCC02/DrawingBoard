@@ -71,4 +71,32 @@ object frmDrbSchPrjEditor: TfrmDrbSchPrjEditor
       end
     end
   end
+  object pmCategories: TPopupMenu
+    Left = 304
+    Top = 320
+    object MenuItem_AddCategory: TMenuItem
+      Caption = 'Add category'
+      OnClick = MenuItem_AddCategoryClick
+    end
+  end
+  object pmCategoryContent: TPopupMenu
+    Left = 424
+    Top = 320
+    object MenuItem_AddCountableItem: TMenuItem
+      Caption = 'Add countable item'
+      OnClick = MenuItem_AddCountableItemClick
+    end
+    object MenuItem_RemoveAllCountableItems: TMenuItem
+      Caption = 'Remove all countable items'
+      OnClick = MenuItem_RemoveAllCountableItemsClick
+    end
+  end
+  object pmProperty: TPopupMenu
+    Left = 560
+    Top = 320
+    object MenuItem_RemoveProperty: TMenuItem
+      Caption = 'Remove property'
+      OnClick = MenuItem_RemovePropertyClick
+    end
+  end
 end

@@ -1,5 +1,5 @@
 {
-    Copyright (C) 2022 VCC
+    Copyright (C) 2023 VCC
     creation date: Aug 2023   (2023.08.10)
     initial release date: 13 Aug 2023
 
@@ -87,14 +87,13 @@ var
 - The DataType attribute should have a menu with predefined datatypes
 - DynTFTCG knows how to inherit datatypes from baseschema (it concatenates two lists). The editor should solve this somehow, because it has to display a list as Enum.
 - there should be a new extension for schema files (in addition to .dynscm) which should be used as filter in open/save dialogs. Based on this extension the app should add it to files which have no extension on save.
-- The [OneTimeComponentInitCode] section is no used by CG. It has to be removed from dynscm files.
+- The [OneTimeComponentInitCode] section is not used by CG. It has to be removed from dynscm files.
 - the DrawingBoardMetaSchemaFileName field has to be updated when updating the FileName property of DrawingBoard category  and <->   - see SetMetaSchemaFromFile - there is a ToDo item
-- Add a tooltip to the FileName property, under the DrawingBoardMetaSchema category, about the $SelfDir$ replacement.
 
 //MetaSchema - ToDo
 [in work] - Implement editor handlers
 - There is a ToDo item in HandleOnOIGetEnumConst about using a cached list, to display the contents of an enum.
-- Implement adding and removing items from various properties or list of properties or adding/removing categories of Cat_# type.
+- all procedures for moving categories, properties and items, should be rewritten to shift array items, instead of swapping src and dest
 }
 
 implementation

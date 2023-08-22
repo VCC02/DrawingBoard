@@ -1,6 +1,6 @@
 {
-    Copyright (C) 2022 VCC
-    creation date: Jan 2023   (2023.08.13)
+    Copyright (C) 2023 VCC
+    creation date: Aug 2023   (2023.08.13)
     initial release date: 13 Aug 2023
 
     author: VCC
@@ -39,6 +39,10 @@ type
 
   TfrmDrbSchPrjEditor = class(TForm)
     lblInfo: TLabel;
+    MenuItem_RemoveAllCountableItems: TMenuItem;
+    MenuItem_RemoveProperty: TMenuItem;
+    MenuItem_AddCountableItem: TMenuItem;
+    MenuItem_AddCategory: TMenuItem;
     MenuItem_Close: TMenuItem;
     N1: TMenuItem;
     MenuItem_SaveAs: TMenuItem;
@@ -48,12 +52,19 @@ type
     MenuItem_File: TMenuItem;
     mmDrbSch: TMainMenu;
     pnlSchemaProjOI: TPanel;
+    pmCategories: TPopupMenu;
+    pmCategoryContent: TPopupMenu;
+    pmProperty: TPopupMenu;
     StatusBar1: TStatusBar;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure MenuItem_AddCategoryClick(Sender: TObject);
+    procedure MenuItem_AddCountableItemClick(Sender: TObject);
     procedure MenuItem_CloseClick(Sender: TObject);
     procedure MenuItem_NewClick(Sender: TObject);
     procedure MenuItem_OpenClick(Sender: TObject);
+    procedure MenuItem_RemoveAllCountableItemsClick(Sender: TObject);
+    procedure MenuItem_RemovePropertyClick(Sender: TObject);
     procedure MenuItem_SaveAsClick(Sender: TObject);
     procedure MenuItem_SaveClick(Sender: TObject);
   private
@@ -63,6 +74,8 @@ type
     FModified: Boolean;
 
     procedure SetModified(Value: Boolean);
+    procedure MoveCategory(ASrcCategoryIndex, ADestCategoryIndex: Integer);
+    procedure MoveProperty(ACategoryIndex, ASrcPropertyIndex, ADestPropertyIndex: Integer);
 
     function HandleOnOIGetCategoryCount: Integer;
     function HandleOnOIGetCategory(AIndex: Integer): string;
@@ -215,6 +228,85 @@ begin
 end;
 
 
+procedure TfrmDrbSchPrjEditor.MenuItem_AddCategoryClick(Sender: TObject);
+var
+  n: Integer;
+begin
+  n := Length(FDrawingBoardMetaSchema.Categories);
+  SetLength(FDrawingBoardMetaSchema.Categories, n + 1);
+  FDrawingBoardMetaSchema.Categories[n].Name := 'new';
+  FDrawingBoardMetaSchema.Categories[n].CategoryComment := 'Comment';
+  FDrawingBoardMetaSchema.Categories[n].Item_CountKey := 'Count';
+  FDrawingBoardMetaSchema.Categories[n].CategoryEnabled := True;
+  SetLength(FDrawingBoardMetaSchema.Categories[n].Items, 0);  //to mention the field, only
+  FDrawingBoardMetaSchema.Categories[n].StructureType := stCountable;
+
+  FOIFrame.ReloadContent;
+  FOIFrame.SelectNode(CCategoryLevel, n + 3, -1, -1, True);
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_AddCountableItemClick(Sender: TObject);
+var
+  TempCategoryIndex: Integer;
+  n: Integer;
+begin
+  TempCategoryIndex := pmCategoryContent.Tag;
+
+  n := Length(FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items);
+  SetLength(FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items, n + 1);
+
+  FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[n].Value := 'Prop_~Index~_New';
+  FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[n].EditorType := Copy(COIEditorTypeStr[etTextWithArrow], 3, MaxInt); //remove 'et' prefix
+
+  FOIFrame.ReloadContent;
+  FOIFrame.SelectNode(CPropertyLevel, TempCategoryIndex + 3, n + 5, -1, True);
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_RemoveAllCountableItemsClick(
+  Sender: TObject);
+var
+  TempCategoryIndex: Integer;
+begin
+  if MessageBox(Handle, PChar('Are you sure you want to remove all the countable items from this category?'), PChar(Application.Title), MB_ICONQUESTION + MB_YESNO) = IDNO then
+    Exit;
+
+  TempCategoryIndex := pmCategoryContent.Tag;
+  SetLength(FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items, 0);
+
+  FOIFrame.ReloadContent;
+  FOIFrame.SelectNode(CCategoryLevel, TempCategoryIndex + 3, -1, -1, True);
+end;
+
+
+procedure TfrmDrbSchPrjEditor.MenuItem_RemovePropertyClick(Sender: TObject);
+var
+  TempCategoryIndex, TempPropertyIndex: Integer;
+  i, n: Integer;
+begin
+  TempCategoryIndex := pmProperty.Tag;
+  TempPropertyIndex := MenuItem_RemoveProperty.Tag;
+
+  if MessageBox(Handle, PChar('Are you sure you want to remove the ' + FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[TempPropertyIndex].Value + ' property?'), PChar(Application.Title), MB_ICONQUESTION + MB_YESNO) = IDNO then
+    Exit;
+
+  n := Length(FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items);
+
+  for i := TempPropertyIndex to n - 2 do
+    FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[i] := FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items[i + 1];
+
+  SetLength(FDrawingBoardMetaSchema.Categories[TempCategoryIndex].Items, n - 1);
+
+  FOIFrame.ReloadContent;
+
+  if TempPropertyIndex < n - 1 then
+    FOIFrame.SelectNode(CPropertyLevel, TempCategoryIndex + 3, TempPropertyIndex - 0 + 5, -1, True)
+  else
+    FOIFrame.SelectNode(CPropertyLevel, TempCategoryIndex + 3, TempPropertyIndex - 1 + 5, -1, True);
+end;
+
+
 procedure TfrmDrbSchPrjEditor.SetModified(Value: Boolean);
 begin
   if FModified <> Value then
@@ -337,6 +429,28 @@ begin
 end;
 
 
+//ToDo: instead of swapping items, the array elements have to be shifted
+procedure TfrmDrbSchPrjEditor.MoveCategory(ASrcCategoryIndex, ADestCategoryIndex: Integer);
+var
+  PhSchemaCategory: TSchemaCategory;
+begin     //overwriting the arrays of pointers, should be fine, because no other code depends on these arrays
+  PhSchemaCategory := FDrawingBoardMetaSchema.Categories[ASrcCategoryIndex];
+  FDrawingBoardMetaSchema.Categories[ASrcCategoryIndex] := FDrawingBoardMetaSchema.Categories[ADestCategoryIndex];
+  FDrawingBoardMetaSchema.Categories[ADestCategoryIndex] := PhSchemaCategory;
+end;
+
+
+//ToDo: instead of swapping items, the array elements have to be shifted
+procedure TfrmDrbSchPrjEditor.MoveProperty(ACategoryIndex, ASrcPropertyIndex, ADestPropertyIndex: Integer);
+var
+  PhItem: TSchemaAttrItem;
+begin
+  PhItem := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[ASrcPropertyIndex];
+  FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[ASrcPropertyIndex] := FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[ADestPropertyIndex];
+  FDrawingBoardMetaSchema.Categories[ACategoryIndex].Items[ADestPropertyIndex] := PhItem;
+end;
+
+
 ////////////////////////////
 
 function TfrmDrbSchPrjEditor.HandleOnOIGetCategoryCount: Integer;
@@ -352,7 +466,7 @@ begin
       Result := '[FileDescription]';
 
     CSettings_CatIdx:
-      Result := '[Title]';
+      Result := '[Settings]';
 
     PredefinedDataTypes:
       Result := '[PredefinedDataTypes]';
@@ -499,7 +613,10 @@ begin
         end;
 
         else
+        begin
           Result := '';
+          AEditorType := etUserEditor;
+        end;
       end;
     end;
   end;
@@ -965,7 +1082,35 @@ end;
 
 procedure TfrmDrbSchPrjEditor.HandleOnOIUserEditorClick(ANodeLevel, ACategoryIndex, APropertyIndex, AItemIndex: Integer; var ARepaintValue: Boolean);
 begin
+  case ANodeLevel of
+    0:
+    begin
+      case ACategoryIndex of
+        CSettings_CatIdx:
+          pmCategories.PopUp;
+        else
+          if ACategoryIndex >= 3 then
+          begin
+            pmCategoryContent.Tag := ACategoryIndex - 3;
+            pmCategoryContent.PopUp;
+          end;
+      end;
+    end;
 
+    1: //property
+    begin
+      if ACategoryIndex >= 3 then
+      begin
+        if APropertyIndex >= 5 then
+        begin
+          pmProperty.Tag := ACategoryIndex - 3;
+          MenuItem_RemoveProperty.Tag := APropertyIndex - 5;
+          pmProperty.PopUp;
+        end;
+      end;
+    end;
+
+  end;
 end;
 
 
@@ -995,9 +1140,9 @@ end;
 
 procedure TfrmDrbSchPrjEditor.HandleOnOIDragAllowed(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex: Integer; var Allowed: Boolean);
 begin
-  Allowed := (CategoryIndex = 0) and
-             (((NodeLevel = CPropertyLevel) and (PropertyItemIndex = -1)) or
-             ((NodeLevel = CPropertyItemLevel) and (PropertyItemIndex > -1)));
+  Allowed := (CategoryIndex >= 3) and
+             ((NodeLevel = CCategoryLevel) or
+             ((NodeLevel = CPropertyLevel) and (PropertyItemIndex = -1)));
 end;
 
 
@@ -1005,53 +1150,62 @@ procedure TfrmDrbSchPrjEditor.HandleOnOIDragOver(NodeLevel, CategoryIndex, Prope
 var
   MatchingCategory: Boolean;
   SameSrcAndDest: Boolean;
-  DraggingName, DraggingItem: Boolean;
-  IsPropertyLevel, IsPropertyItemLevel: Boolean;
-  DraggingFromTheSame: Boolean;
+  DraggingCategory: Boolean;
+  IsCategoryLevel, IsPropertyLevel: Boolean;
+  DraggingFromTheSameCategory: Boolean;
 begin
-  MatchingCategory := CategoryIndex = 0;
+  MatchingCategory := (SrcCategoryIndex >= 3) and (CategoryIndex >= 3);
   SameSrcAndDest := NodeLevel = SrcNodeLevel;
+  IsCategoryLevel := NodeLevel = CCategoryLevel;
   IsPropertyLevel := NodeLevel = CPropertyLevel;
-  IsPropertyItemLevel := NodeLevel = CPropertyItemLevel;
 
-  DraggingName := IsPropertyLevel and (PropertyItemIndex = -1);
-  DraggingItem := IsPropertyItemLevel and (PropertyItemIndex > -1);
-  DraggingFromTheSame := (PropertyIndex = SrcPropertyIndex) and IsPropertyItemLevel;
+  DraggingCategory := IsCategoryLevel;  //SrcPropertyIndex has no meaningful value, so it can't be used here. It is the same as SrcCategoryIndex.
+  DraggingFromTheSameCategory := (SrcCategoryIndex = CategoryIndex) and (PropertyIndex >= 5) and (SrcPropertyIndex >= 5);
 
   Accept := MatchingCategory and
             SameSrcAndDest and
-            (DraggingName or (DraggingItem and DraggingFromTheSame));
+            (DraggingCategory or DraggingFromTheSameCategory);
 end;
 
 
 procedure TfrmDrbSchPrjEditor.HandleOnOIDragDrop(NodeLevel, CategoryIndex, PropertyIndex, PropertyItemIndex, SrcNodeLevel, SrcCategoryIndex, SrcPropertyIndex, SrcPropertyItemIndex: Integer; Shift: TShiftState; const Pt: TPoint; var Effect: DWORD; Mode: TDropMode);
 begin
-  if not ((CategoryIndex = 0) and (SrcCategoryIndex = 0)) then
+  if not ((SrcCategoryIndex >= 3) and (CategoryIndex >= 3)) then
     Exit;
+
+  //dragging a category
+  if (NodeLevel = CCategoryLevel) and (SrcNodeLevel = CCategoryLevel) then
+    //if (PropertyIndex = -1) and (SrcPropertyIndex = -1) then   //these vars are not -1 when dragging categories
+      if CategoryIndex <> SrcCategoryIndex then
+      begin
+        MoveCategory(SrcCategoryIndex - 3, CategoryIndex - 3);
+
+        FOIFrame.ReloadContent;
+        Modified := True;
+      end;
 
   //dragging a property
   if (NodeLevel = CPropertyLevel) and (SrcNodeLevel = CPropertyLevel) then
     if (PropertyItemIndex = -1) and (SrcPropertyItemIndex = -1) then
       if PropertyIndex <> SrcPropertyIndex then
       begin
-        //MoveProperty(SrcPropertyIndex, PropertyIndex);
+        MoveProperty(SrcCategoryIndex - 3, SrcPropertyIndex - 5, PropertyIndex - 5);
 
-        FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
-        FOIFrame.ReloadPropertyItems(SrcCategoryIndex, SrcPropertyIndex, True);
-        //DoOnTriggerOnControlsModified;
+        FOIFrame.ReloadContent;
+        Modified := True;
       end;
 
   //dragging a property item
-  if (NodeLevel = CPropertyItemLevel) and (SrcNodeLevel = CPropertyItemLevel) then
-    if (PropertyItemIndex > -1) and (SrcPropertyItemIndex > -1) then
-      if PropertyIndex = SrcPropertyIndex then
-        if PropertyItemIndex <> SrcPropertyItemIndex then
-        begin
-          //MovePropertyItem(PropertyIndex, SrcPropertyItemIndex, PropertyItemIndex);
-
-          FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
-          //DoOnTriggerOnControlsModified;
-        end;
+  //if (NodeLevel = CPropertyItemLevel) and (SrcNodeLevel = CPropertyItemLevel) then
+  //  if (PropertyItemIndex > -1) and (SrcPropertyItemIndex > -1) then
+  //    if PropertyIndex = SrcPropertyIndex then
+  //      if PropertyItemIndex <> SrcPropertyItemIndex then
+  //      begin
+  //        //MovePropertyItem(PropertyIndex, SrcPropertyItemIndex, PropertyItemIndex);
+  //
+  //        FOIFrame.ReloadPropertyItems(CategoryIndex, PropertyIndex, True);
+  //        //Modified := True;
+  //      end;
 end;
 
 end.

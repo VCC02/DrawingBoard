@@ -1,5 +1,5 @@
 {
-    Copyright (C) 2022 VCC
+    Copyright (C) 2023 VCC
     creation date: Aug 2023   (2023.08.17)
     initial release date: 18 Aug 2023
 
@@ -713,6 +713,7 @@ begin
 end;
 
 
+//ToDo: instead of swapping items, the array elements have to be shifted
 procedure TfrDrawingBoardSchemaEditor.MoveProperty(CategoryIndex, SrcPropertyIndex, DestPropertyIndex: Integer);
 var
   k: Integer;
@@ -993,11 +994,40 @@ end;
 
 procedure TfrDrawingBoardSchemaEditor.HandleOnOIPaintText(ANodeData: TNodeDataPropertyRec; ACategoryIndex, APropertyIndex, APropertyItemIndex: Integer;
   const TargetCanvas: TCanvas; Column: TColumnIndex; var TextType: TVSTTextType);
+var
+  TempValue: string;
 begin
-  if ANodeData.Level = 0 then
-  begin
-    TargetCanvas.Font.Style := [fsBold];
-    Exit;
+  case ANodeData.Level of
+    CCategoryLevel:
+    begin
+      TargetCanvas.Font.Style := [fsBold];
+      Exit;
+    end;
+
+    CPropertyLevel:
+      ;
+
+    CPropertyItemLevel:
+    begin
+      case FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType of
+        stMisc:
+        begin
+          TempValue := FProject.CategoryContents[ACategoryIndex].Items[0][APropertyItemIndex];
+          if (Column = 1) and (Pos(CSelfDir, TempValue) > 0) then
+          begin
+            if not FileExists(StringReplace(TempValue, CSelfDir, ExtractFileDir(FProject.ProjectFileName), [rfReplaceAll])) then
+              //if Selected then  //the OI doen't currenty support getting node attributes
+              begin
+                TargetCanvas.Font.Style := [fsBold];
+                TargetCanvas.Font.Color := clRed;
+              end;
+          end;
+        end;
+
+        else
+          ;
+      end;
+    end;
   end;
 end;
 
@@ -1045,7 +1075,28 @@ end;
 procedure TfrDrawingBoardSchemaEditor.HandleOnOIEditorAssignMenuAndTooltip(ANodeLevel, ACategoryIndex, APropertyIndex, AItemIndex: Integer;
   Sender: TObject; var APopupMenu: TPopupMenu; var AHint: string; var AShowHint: Boolean);
 begin
+  case ANodeLevel of
+    CPropertyItemLevel:
+    begin
+      case FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].StructureType of
+        stCountable:
+          ;
 
+        stCode:
+          ;
+
+        stMisc:
+          if FProject.DrawingBoardMetaSchema.Categories[ACategoryIndex].Name = CDrawingBoardMetaSchemaKeyName then
+          begin
+            AHint := 'The "' + CSelfDir + '" var/replacement is expanded (resolved) to the directory of the loaded schema file.';
+            AShowHint := True;
+          end;
+      end;
+    end;
+
+    else
+      ;
+  end;
 end;
 
 
