@@ -98,6 +98,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 5622015
           ParentColor = False
           TabOrder = 0
+          Transparent = False
           Visible = False
         end
         object sttxtSelectionLeft: TStaticText
@@ -109,6 +110,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 5622015
           ParentColor = False
           TabOrder = 1
+          Transparent = False
           Visible = False
         end
         object sttxtSelectionRight: TStaticText
@@ -120,6 +122,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 5622015
           ParentColor = False
           TabOrder = 2
+          Transparent = False
           Visible = False
         end
         object sttxtSelectionBottom: TStaticText
@@ -131,6 +134,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 5622015
           ParentColor = False
           TabOrder = 3
+          Transparent = False
           Visible = False
         end
         object sttxtVertical: TStaticText
@@ -146,6 +150,7 @@ object frDrawingBoard: TfrDrawingBoard
           PopupMenu = pmScreenEdges
           ShowHint = True
           TabOrder = 4
+          Transparent = False
           OnMouseDown = sttxtVerticalMouseDown
           OnMouseEnter = sttxtVerticalMouseEnter
           OnMouseLeave = sttxtVerticalMouseLeave
@@ -165,6 +170,7 @@ object frDrawingBoard: TfrDrawingBoard
           PopupMenu = pmScreenEdges
           ShowHint = True
           TabOrder = 5
+          Transparent = False
           OnMouseDown = sttxtHorizontalMouseDown
           OnMouseEnter = sttxtHorizontalMouseEnter
           OnMouseLeave = sttxtHorizontalMouseLeave
@@ -184,6 +190,7 @@ object frDrawingBoard: TfrDrawingBoard
           PopupMenu = pmScreenEdges
           ShowHint = True
           TabOrder = 6
+          Transparent = False
           OnMouseDown = sttxtIntersectionMouseDown
           OnMouseEnter = sttxtIntersectionMouseEnter
           OnMouseLeave = sttxtIntersectionMouseLeave
@@ -199,6 +206,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 9358336
           ParentColor = False
           TabOrder = 7
+          Transparent = False
           Visible = False
         end
         object sttxtMatchBottom: TStaticText
@@ -210,6 +218,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 9358336
           ParentColor = False
           TabOrder = 8
+          Transparent = False
           Visible = False
         end
         object sttxtMatchLeft: TStaticText
@@ -221,6 +230,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 9358336
           ParentColor = False
           TabOrder = 9
+          Transparent = False
           Visible = False
         end
         object sttxtMatchRight: TStaticText
@@ -232,6 +242,7 @@ object frDrawingBoard: TfrDrawingBoard
           Color = 9358336
           ParentColor = False
           TabOrder = 10
+          Transparent = False
           Visible = False
         end
       end

@@ -167,6 +167,7 @@ type
     FDynTFTComponentType: Integer; //0 = Button, 1 = ArrowButton  etc           //this is an overall index, used when all components from all plugins, are concatenated in one list
     FPluginIndex: Integer;
     FComponentIndexInPlugin: Integer;       // per plugin component index
+    FUserData: Pointer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -188,6 +189,7 @@ type
     property DynTFTComponentType: Integer read FDynTFTComponentType write FDynTFTComponentType;
     property PluginIndex: Integer read FPluginIndex write FPluginIndex;
     property ComponentIndexInPlugin: Integer read FComponentIndexInPlugin write FComponentIndexInPlugin;
+    property UserData: Pointer read FUserData write FUserData;
 
     property PopupMenu;
     property OnClick;

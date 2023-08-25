@@ -28,7 +28,7 @@ unit DrawingBoardUtils;
 interface
 
 uses
-  Windows, Classes, Controls, ExtCtrls, StdCtrls, Graphics, Forms, VirtualTrees,
+  Classes, Controls, ExtCtrls, StdCtrls, Graphics, Forms, VirtualTrees,
   Menus,
   DrawingBoardDataTypes, DynTFTCodeGenSharedDataTypes;
 
@@ -167,7 +167,7 @@ implementation
 
 
 uses
-  SysUtils, Math, IniFiles, DynTFTSharedUtils;
+  SysUtils, Math, DynTFTSharedUtils;
 
 
 procedure SetLabelVisibility(ALabel: TLabel; AVisible: Boolean);
@@ -337,13 +337,27 @@ end;
 procedure SetMountPanelCoords(APanel: TMountPanel; ALeft, ATop: Integer);
 var
   ParentScrollPanel: TPanel;
+  ParentMountPanel: TMountPanel;
 begin
-  ParentScrollPanel := APanel.Parent as TPanel;
-  if not Assigned(ParentScrollPanel) then
-    Exit;
+  if APanel.Parent is TPanel then
+  begin
+    ParentScrollPanel := APanel.Parent as TPanel;
+    if not Assigned(ParentScrollPanel) then
+      Exit;
 
-  APanel.Left := Max(0, Min(ALeft, ParentScrollPanel.Width - 20));
-  APanel.Top := Max(0, Min(ATop, ParentScrollPanel.Height - 20));
+    APanel.Left := Max(0, Min(ALeft, ParentScrollPanel.Width - 20));
+    APanel.Top := Max(0, Min(ATop, ParentScrollPanel.Height - 20));
+  end;
+
+  if APanel.Parent is TMountPanel then
+  begin
+    ParentMountPanel := APanel.Parent as TMountPanel;
+    if not Assigned(ParentMountPanel) then
+      Exit;
+
+    APanel.Left := Max(0, Min(ALeft, ParentMountPanel.Width - 20));
+    APanel.Top := Max(0, Min(ATop, ParentMountPanel.Height - 20));
+  end;
 end;
 
 
@@ -400,9 +414,11 @@ begin
   PanelToDelete.Visible := False;
   DeleteDynTFTOwnerCallback(PanelToDelete);
 
-  PanelToDelete.Parent.RemoveControl(PanelToDelete);  /////////////////////  added later
-  PanelToDelete.Caption := 'DeletedPanel';
-  PanelToDelete.Free;
+  {$IFnDEF FPC}  //disabled for now in FPC, because of an AV when deleting panels (it looks like a double free)
+    PanelToDelete.Parent.RemoveControl(PanelToDelete);  /////////////////////  added later  - sets Parent to nil, position and size to 0, Handle and WindowHandle to 0, resets WinControlFlags
+    PanelToDelete.Caption := 'DeletedPanel';
+    FreeAndNil(PanelToDelete);
+  {$ENDIF}
 end;
 
 

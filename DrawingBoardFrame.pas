@@ -91,6 +91,8 @@ type
   TOnSetCustomPropertyValueOnLoading = procedure(APropertyName: string; ACompType: Integer; var APropertyValue: string) of object;
   TOnResolveColorConst = function(AColorName: string): TColor of object;
 
+  TOnAfterMovingMountPanel = procedure(APanel: TMountPanel) of object;
+
   TPropertyGroup = record
     GroupName: string;
     UsedCount: Integer; //Number of components from this group. - Field updated and used by project settings on form show
@@ -302,6 +304,7 @@ type
     FOnDrawingBoardRemoveFocus: TOnDrawingBoardRemoveFocus;
     FOnSetCustomPropertyValueOnLoading: TOnSetCustomPropertyValueOnLoading;
     FOnResolveColorConst: TOnResolveColorConst;
+    FOnAfterMovingMountPanel: TOnAfterMovingMountPanel;
 
     vstScreens: TVirtualStringTree;
 
@@ -339,9 +342,10 @@ type
     procedure DoOnDrawingBoardRemoveFocus;
     procedure DoOnSetCustomPropertyValueOnLoading(APropertyName: string; ACompType: Integer; var APropertyValue: string);
     function DoOnResolveColorConst(AColorName: string): TColor;
+    procedure DoOnAfterMovingMountPanel(APanel: TMountPanel);
 
     procedure SetHandlersToCornerLabels(ALabel: TLabel);
-    function CreateBasePanel(AParent: TWinControl; X, Y: Integer; DynTFTComponentTypeIndex: Integer; ShowPanelName, ShowEditCorners: Boolean; CornerColor: TColor; IdxInTProjectVisualComponentArr, APluginIndex, AComponentIndexInPlugin: Integer): TMountPanel;
+    function CreateBasePanel(AParent: TWinControl; X, Y: Integer; DynTFTComponentTypeIndex: Integer; ShowPanelName, ShowEditCorners: Boolean; CornerColor: TColor; IdxInTProjectVisualComponentArr, APluginIndex, AComponentIndexInPlugin: Integer; AUserData: Pointer = nil): TMountPanel;
     function GetMaxNumberForComponentName(ComponentTypeIndex: Integer): Integer;
 
     procedure SetPanelGeneralHint(APanel: TMountPanel; Locked: Boolean = False);
@@ -420,7 +424,7 @@ type
     procedure UpdateAllComponentsToNewPropertyValue(const ASearchedPropertyUpperCaseName: string; OldValue, NewValue: string);
     procedure SelectSinglePanel(APanel: TMountPanel);
     procedure PopulateItemsWithConstantsByPropertyName(Items: TStrings; PropertyName, SpacePrefix: string);
-    function AddComponentToDrawingBoard(ComponentTypeIndex, X, Y, APluginIndex, AComponentIndexInPlugin: Integer): TMountPanel;
+    function AddComponentToDrawingBoard(ComponentTypeIndex, X, Y, APluginIndex, AComponentIndexInPlugin: Integer; AParentComponent: TWinControl = nil; AUserData: Pointer = nil): TMountPanel;
     procedure SelectAllPanelsThenUpdateObjectInspector(SelectFromAllScreens: Boolean);
     procedure DeleteAllSelectedPanelsThenUpdateSelection;
     procedure GenerateListOfVisibleComponents;
@@ -508,6 +512,7 @@ type
     property OnDrawingBoardRemoveFocus: TOnDrawingBoardRemoveFocus write FOnDrawingBoardRemoveFocus;
     property OnSetCustomPropertyValueOnLoading: TOnSetCustomPropertyValueOnLoading write FOnSetCustomPropertyValueOnLoading;
     property OnResolveColorConst: TOnResolveColorConst write FOnResolveColorConst;
+    property OnAfterMovingMountPanel: TOnAfterMovingMountPanel write FOnAfterMovingMountPanel;
   end;
 
 
@@ -648,6 +653,7 @@ begin
   FOnDrawingBoardRemoveFocus := nil;
   FOnSetCustomPropertyValueOnLoading := nil;
   FOnResolveColorConst := nil;
+  FOnAfterMovingMountPanel := nil;
 
   CreateRemainingComponents;
 
@@ -954,6 +960,13 @@ begin
 end;
 
 
+procedure TfrDrawingBoard.DoOnAfterMovingMountPanel(APanel: TMountPanel);
+begin
+  if Assigned(FOnAfterMovingMountPanel) then
+    FOnAfterMovingMountPanel(APanel);
+end;
+
+
 procedure TfrDrawingBoard.SetHandlersToCornerLabels(ALabel: TLabel);
 begin
   ALabel.OnMouseDown := {$IFDEF FPC}@{$ENDIF}GenericCornerLabelMouseDown;
@@ -962,12 +975,12 @@ begin
 end;
 
 
-function TfrDrawingBoard.CreateBasePanel(AParent: TWinControl; X, Y: Integer; DynTFTComponentTypeIndex: Integer; ShowPanelName, ShowEditCorners: Boolean; CornerColor: TColor; IdxInTProjectVisualComponentArr, APluginIndex, AComponentIndexInPlugin: Integer): TMountPanel;
+function TfrDrawingBoard.CreateBasePanel(AParent: TWinControl; X, Y: Integer; DynTFTComponentTypeIndex: Integer; ShowPanelName, ShowEditCorners: Boolean; CornerColor: TColor; IdxInTProjectVisualComponentArr, APluginIndex, AComponentIndexInPlugin: Integer; AUserData: Pointer = nil): TMountPanel;
 var
   APanel: TMountPanel;                        
 begin
-  APanel := TMountPanel.CreateParented(pnlScroll.Handle);
-  APanel.Parent := pnlScroll;
+  APanel := TMountPanel.CreateParented(AParent.Handle);
+  APanel.Parent := AParent;
   APanel.Visible := False;
   APanel.Left := X;
   APanel.Top := Y;
@@ -987,6 +1000,7 @@ begin
 
   APanel.PluginIndex := APluginIndex;
   APanel.ComponentIndexInPlugin := AComponentIndexInPlugin;
+  APanel.UserData := AUserData;
 
   APanel.Image := TImage.Create(APanel);
   APanel.Image.Parent := APanel;
@@ -1156,7 +1170,7 @@ begin
   APanel.RightLabel.Enabled := ShowEditCorners;
   APanel.BotLabel.Enabled := ShowEditCorners;
 
-  APanel.Show;
+  APanel.Visible := True; //APanel.Show;
   Result := APanel;
 end;
 
@@ -1193,11 +1207,14 @@ begin
 end;
 
 
-function TfrDrawingBoard.AddComponentToDrawingBoard(ComponentTypeIndex, X, Y, APluginIndex, AComponentIndexInPlugin: Integer): TMountPanel;
+function TfrDrawingBoard.AddComponentToDrawingBoard(ComponentTypeIndex, X, Y, APluginIndex, AComponentIndexInPlugin: Integer; AParentComponent: TWinControl = nil; AUserData: Pointer = nil): TMountPanel;
 var
   vn, dn, NameSuffix, i: Integer;
   ComponentDefaultSize: TComponentDefaultSize;
 begin
+  if (ComponentTypeIndex < 0) or (ComponentTypeIndex > Length(FAllComponents) -1) then
+    raise Exception.Create('Component type out of range. Make sure this component type is installed (this should come from plugin).');
+
   dn := Length(FAllComponents[ComponentTypeIndex].DesignComponentsOneKind);
   SetLength(FAllComponents[ComponentTypeIndex].DesignComponentsOneKind, dn + 1);
 
@@ -1246,7 +1263,25 @@ begin
   FAllVisualComponents[vn].IndexInTDynTFTDesignAllComponentsArr := ComponentTypeIndex;
   FAllVisualComponents[vn].IndexInDesignComponentOneKindArr := dn;
 
-  FAllVisualComponents[vn].ScreenPanel := CreateBasePanel(pnlScroll, X, Y, ComponentTypeIndex, True, True, clNavy, vn, APluginIndex, AComponentIndexInPlugin);
+  if AParentComponent = nil then
+    FAllVisualComponents[vn].ScreenPanel := CreateBasePanel(pnlScroll, X, Y, ComponentTypeIndex, True, True, clNavy, vn, APluginIndex, AComponentIndexInPlugin, AUserData)
+  else
+  begin
+    FAllVisualComponents[vn].ScreenPanel := CreateBasePanel(AParentComponent, X, Y, ComponentTypeIndex, True, True, clNavy, vn, APluginIndex, AComponentIndexInPlugin, AUserData);
+
+    //if AParentComponent is TMountPanel then
+    //begin
+    //  (AParentComponent as TMountPanel).TopLeftLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).TopRightLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).BotLeftLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).BotRightLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).LeftLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).TopLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).RightLabel.BringToFront;
+    //  (AParentComponent as TMountPanel).BotLabel.BringToFront;
+    //end;
+  end;
+
   FAllVisualComponents[vn].ScreenPanel.Caption := FAllComponents[ComponentTypeIndex].DesignComponentsOneKind[dn].ObjectName;
 
   SetPanelDefaultSize(FAllVisualComponents[vn].ScreenPanel, ComponentDefaultSize);
@@ -1554,6 +1589,45 @@ begin
 end;
 
 
+function HasAtLeastOneSelectedParent(APanel: TMountPanel): Boolean;
+begin
+  Result := False;
+
+  if (APanel.Parent <> nil) and (APanel.Parent is TMountPanel) and (APanel.Parent.Tag = 1) then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  while (APanel.Parent <> nil) and (APanel.Parent is TMountPanel) do
+  begin
+    APanel := TMountPanel(APanel.Parent);
+
+    if APanel.Tag = 1 then
+    begin
+      Result := True;
+      Break;
+    end;
+  end;
+end;
+
+
+function HasAtLeastOneSelectedChildPanel(APanel: TMountPanel): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+
+  for i := 0 to APanel.ComponentCount - 1 do
+    if APanel.Components[i] is TMountPanel then
+    begin
+      Result := Result and HasAtLeastOneSelectedChildPanel(APanel.Components[i] as TMountPanel);   //Recursion here
+      if Result then
+        Break;
+    end;
+end;
+
+
 procedure TfrDrawingBoard.GenericPanelMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var
   tp: TPoint;
@@ -1576,6 +1650,9 @@ begin
   if Sender is TMountPanel then
   begin
     SenderPanel := Sender as TMountPanel;
+
+    if HasAtLeastOneSelectedParent(SenderPanel) then
+      Exit;
 
     NewLeft := FMouseDownComponentPos.X + tp.X - FMouseDownGlobalPos.X;
     NewTop := FMouseDownComponentPos.Y + tp.Y - FMouseDownGlobalPos.Y;
@@ -1614,22 +1691,24 @@ begin
       if (pnlScroll.Components[i] is TMountPanel) and ((pnlScroll.Components[i] as TMountPanel) <> SenderPanel) then
       begin
         WorkPanel := pnlScroll.Components[i] as TMountPanel;
+
         if (WorkPanel.Tag = 1) then //it is selected, it can be moved
-        begin
-          if not ComponentIsLocked(WorkPanel) then
+          if not HasAtLeastOneSelectedChildPanel(WorkPanel) and not HasAtLeastOneSelectedParent(WorkPanel) then  //this will prevent dragging a panel from its children
           begin
-            SetMountPanelCoords(WorkPanel, WorkPanel.Left + SenderPanel.Left - OldLeft, WorkPanel.Top + SenderPanel.Top - OldTop);
+            if not ComponentIsLocked(WorkPanel) then
+            begin
+              SetMountPanelCoords(WorkPanel, WorkPanel.Left + SenderPanel.Left - OldLeft, WorkPanel.Top + SenderPanel.Top - OldTop);
 
-            UpdateComponentLeftAndTopFromPanel(FAllComponents, FAllVisualComponents, WorkPanel);
+              UpdateComponentLeftAndTopFromPanel(FAllComponents, FAllVisualComponents, WorkPanel);
+            end;
+
+            FSelectionContent.UpdateDisplayedPanelProperties(FAllComponents, FAllVisualComponents, WorkPanel);
+
+            FCompSelectionMinLeft := Min(FCompSelectionMinLeft, WorkPanel.Left);
+            FCompSelectionMinTop := Min(FCompSelectionMinTop, WorkPanel.Top);
+            FCompSelectionMaxRight := Max(FCompSelectionMaxRight, WorkPanel.Left + WorkPanel.Width - 1);
+            FCompSelectionMaxBottom := Max(FCompSelectionMaxBottom, WorkPanel.Top + WorkPanel.Height - 1);
           end;
-
-          FSelectionContent.UpdateDisplayedPanelProperties(FAllComponents, FAllVisualComponents, WorkPanel);
-
-          FCompSelectionMinLeft := Min(FCompSelectionMinLeft, WorkPanel.Left);
-          FCompSelectionMinTop := Min(FCompSelectionMinTop, WorkPanel.Top);
-          FCompSelectionMaxRight := Max(FCompSelectionMaxRight, WorkPanel.Left + WorkPanel.Width - 1);
-          FCompSelectionMaxBottom := Max(FCompSelectionMaxBottom, WorkPanel.Top + WorkPanel.Height - 1);
-        end;
       end;
 
     if FSelectionContent.GetDisplayedPropertiesCount > 0 then
@@ -1643,7 +1722,9 @@ end;
 procedure TfrDrawingBoard.GenericPanelMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   SenderPanel: TMountPanel;
+  WasHolding: Boolean;
 begin
+  WasHolding := PanelHold;
   PanelHold := False;
 
   FPanelDoubleClick := False;
@@ -1654,6 +1735,9 @@ begin
   SetPanelGeneralHint(SenderPanel, ComponentIsLocked(SenderPanel));
 
   HideAlignmentGuideLines;
+
+  if WasHolding then
+    DoOnAfterMovingMountPanel(SenderPanel);
 end;
 
 
@@ -1670,6 +1754,7 @@ begin
     Exit;
   end;
 
+  APanel.Image.Picture.Bitmap.Clear;
   APanel.Image.Picture.Bitmap.Width := APanel.Image.Width;   //"Out of system resources." here if not writing to plugin console
   APanel.Image.Picture.Bitmap.Height := APanel.Image.Height;
 
