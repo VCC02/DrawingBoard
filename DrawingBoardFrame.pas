@@ -582,6 +582,7 @@ begin
   vstScreens.OnGetText := {$IFDEF FPC}@{$ENDIF}vstScreensGetText;
   vstScreens.OnGetImageIndex := {$IFDEF FPC}@{$ENDIF}vstScreensGetImageIndex;
   vstScreens.OnKeyDown := {$IFDEF FPC}@{$ENDIF}vstScreensKeyDown;
+  vstScreens.Colors.UnfocusedSelectionColor := clGradientInactiveCaption;
 
   NewColum := vstScreens.Header.Columns.Add;
   NewColum.MinWidth := 115;
@@ -1041,6 +1042,7 @@ begin
   APanel.TopLeftLabel.Width := 5;
   APanel.TopLeftLabel.Height := 5;
   APanel.TopLeftLabel.Color := CornerColor;
+  APanel.TopLeftLabel.Transparent := False;
   APanel.TopLeftLabel.Tag := 20;
   APanel.TopLeftLabel.Visible := False;
   APanel.TopLeftLabel.Cursor := crSizeNWSE;
@@ -1057,6 +1059,7 @@ begin
   APanel.TopRightLabel.Width := 5;
   APanel.TopRightLabel.Height := 5;
   APanel.TopRightLabel.Color := CornerColor;
+  APanel.TopRightLabel.Transparent := False;
   APanel.TopRightLabel.Tag := 21;
   APanel.TopRightLabel.Visible := False;
   APanel.TopRightLabel.Cursor := crSizeNESW;
@@ -1073,6 +1076,7 @@ begin
   APanel.BotLeftLabel.Width := 5;
   APanel.BotLeftLabel.Height := 5;
   APanel.BotLeftLabel.Color := CornerColor;
+  APanel.BotLeftLabel.Transparent := False;
   APanel.BotLeftLabel.Tag := 22;
   APanel.BotLeftLabel.Visible := False;
   APanel.BotLeftLabel.Cursor := crSizeNESW;
@@ -1089,6 +1093,7 @@ begin
   APanel.BotRightLabel.Width := 5;
   APanel.BotRightLabel.Height := 5;
   APanel.BotRightLabel.Color := CornerColor;
+  APanel.BotRightLabel.Transparent := False;
   APanel.BotRightLabel.Tag := 23;
   APanel.BotRightLabel.Visible := False;
   APanel.BotRightLabel.Cursor := crSizeNWSE;
@@ -1105,6 +1110,7 @@ begin
   APanel.LeftLabel.Width := 5;
   APanel.LeftLabel.Height := 5;
   APanel.LeftLabel.Color := CornerColor;
+  APanel.LeftLabel.Transparent := False;
   APanel.LeftLabel.Tag := 24;
   APanel.LeftLabel.Visible := False;
   APanel.LeftLabel.Cursor := crSizeWE;
@@ -1121,6 +1127,7 @@ begin
   APanel.TopLabel.Width := 5;
   APanel.TopLabel.Height := 5;
   APanel.TopLabel.Color := CornerColor;
+  APanel.TopLabel.Transparent := False;
   APanel.TopLabel.Tag := 25;
   APanel.TopLabel.Visible := False;
   APanel.TopLabel.Cursor := crSizeNS;
@@ -1137,6 +1144,7 @@ begin
   APanel.RightLabel.Width := 5;
   APanel.RightLabel.Height := 5;
   APanel.RightLabel.Color := CornerColor;
+  APanel.RightLabel.Transparent := False;
   APanel.RightLabel.Tag := 26;
   APanel.RightLabel.Visible := False;
   APanel.RightLabel.Cursor := crSizeWE;
@@ -1153,6 +1161,7 @@ begin
   APanel.BotLabel.Width := 5;
   APanel.BotLabel.Height := 5;
   APanel.BotLabel.Color := CornerColor;
+  APanel.BotLabel.Transparent := False;
   APanel.BotLabel.Tag := 27;
   APanel.BotLabel.Visible := False;
   APanel.BotLabel.Cursor := crSizeNS;
@@ -1754,7 +1763,10 @@ begin
     Exit;
   end;
 
-  APanel.Image.Picture.Bitmap.Clear;
+  {$IFDEF FPC}
+    APanel.Image.Picture.Bitmap.Clear;
+  {$ENDIF}
+
   APanel.Image.Picture.Bitmap.Width := APanel.Image.Width;   //"Out of system resources." here if not writing to plugin console
   APanel.Image.Picture.Bitmap.Height := APanel.Image.Height;
 

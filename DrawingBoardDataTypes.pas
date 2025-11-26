@@ -77,6 +77,7 @@ type
     OneTimeInitCode_Interface: TComponentInitCode;
     OneTimeInitCode_Implementation: TComponentInitCode;
     PerInstanceInitCode: TComponentInitCode;
+    PerInstanceInitCodeAfterSettingProperties: TComponentInitCode;
     PerInstanceInitConstants: TComponentInitCode;
     CreateComponentCode: TComponentInitCode;
     ComponentDependencies: TStringArr;
