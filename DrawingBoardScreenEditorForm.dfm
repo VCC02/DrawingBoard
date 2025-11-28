@@ -105,6 +105,7 @@ object frmDrawingBoardScreenEditor: TfrmDrawingBoardScreenEditor
     Width = 97
     Height = 51
     Caption = 'Preview'
+    ParentBackground = False
     TabOrder = 5
   end
   object chkPersisted: TCheckBox

@@ -3037,7 +3037,7 @@ begin
   FAllScreens[0].Active := True;
   FAllScreens[0].Persisted := False;
 
-  PageControlScreen.Pages[0].Brush.Color := FAllScreens[0].Color;
+  PageControlScreen.Pages[0].Brush.Color := FAllScreens[0].Color;  //does not seem to have any effect when themed
   PageControlScreen.Pages[0].Caption := FAllScreens[0].Name;
   PageControlScreen.Pages[0].ImageIndex := 1;
   PageControlScreen.Pages[0].Repaint;

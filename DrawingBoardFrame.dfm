@@ -81,6 +81,7 @@ object frDrawingBoard: TfrDrawingBoard
         Height = 1080
         Color = clWhite
         FullRepaint = False
+        ParentBackground = False
         PopupMenu = pmDrawingBoard
         TabOrder = 0
         OnClick = pnlScrollClick
