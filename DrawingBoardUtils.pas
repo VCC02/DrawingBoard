@@ -1455,54 +1455,90 @@ end;
 
 function TSelectionContent.GetPropertyName(ObjectInspectorType: Integer; Index: Integer): string;
 begin
-  case ObjectInspectorType of
-    CObjectInspector_PropertySel:
-      Result := FDisplayedProperties[Index].PropertyName;
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
 
-    CObjectInspector_EventSel:
-      Result := FDisplayedEvents[Index].PropertyName;
-  else
-    Result := 'PropertyName';
+  try
+    case ObjectInspectorType of
+      CObjectInspector_PropertySel:
+        Result := FDisplayedProperties[Index].PropertyName;
+
+      CObjectInspector_EventSel:
+        Result := FDisplayedEvents[Index].PropertyName;
+    else
+      Result := 'PropertyName';
+    end;
+  except
+    Result := 'Bug'; //There is a bug, that causes FDisplayedProperties / FDisplayedEvents to be empty.
   end;
 end;
 
 
 function TSelectionContent.GetPropertyValue(ObjectInspectorType: Integer; Index: Integer): string;
 begin
-  case ObjectInspectorType of
-    CObjectInspector_PropertySel:
-      if FDisplayedProperties[Index].DisplayAsMixedValues then
-        Result := CMixedValues
-      else
-        Result := FDisplayedProperties[Index].PropertyValue;
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
 
-    CObjectInspector_EventSel:
-      if FDisplayedEvents[Index].DisplayAsMixedValues then
-        Result := CMixedValues
-      else
-        Result := FDisplayedEvents[Index].PropertyValue;
-  else
-    Result := 'PropertyValue';
+  try
+    case ObjectInspectorType of
+      CObjectInspector_PropertySel:
+        if FDisplayedProperties[Index].DisplayAsMixedValues then
+          Result := CMixedValues
+        else
+          Result := FDisplayedProperties[Index].PropertyValue;
+
+      CObjectInspector_EventSel:
+        if FDisplayedEvents[Index].DisplayAsMixedValues then
+          Result := CMixedValues
+        else
+          Result := FDisplayedEvents[Index].PropertyValue;
+    else
+      Result := 'PropertyValue';
+    end;
+  except
+    Result := 'Bug'; //There is a bug, that causes FDisplayedProperties / FDisplayedEvents to be empty.
   end;
 end;
 
 
 function TSelectionContent.GetPropertyDataType(ObjectInspectorType: Integer; Index: Integer): string;
 begin
-  case ObjectInspectorType of
-    CObjectInspector_PropertySel:
-      Result := FDisplayedProperties[Index].PropertyDataType;
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
 
-    CObjectInspector_EventSel:
-      Result := FDisplayedEvents[Index].PropertyDataType;
-  else
-    Result := 'PropertyDataType';
+  try
+    case ObjectInspectorType of
+      CObjectInspector_PropertySel:
+        Result := FDisplayedProperties[Index].PropertyDataType;
+
+      CObjectInspector_EventSel:
+        Result := FDisplayedEvents[Index].PropertyDataType;
+    else
+      Result := 'PropertyDataType';
+    end;
+  except
+    Result := 'Unknown'; //There is a bug, that causes FDisplayedProperties / FDisplayedEvents to be empty.
   end;
 end;
 
 
 function TSelectionContent.GetPropertyAvailableOnCompilerDirectives(ObjectInspectorType: Integer; Index: Integer): string;
 begin
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
+  
   case ObjectInspectorType of
     CObjectInspector_PropertySel:
       if FDisplayedProperties[Index].DisplayAsMixedDirectiveAvailability then
@@ -1523,6 +1559,12 @@ end;
 
 function TSelectionContent.GetPropertyDescription(ObjectInspectorType: Integer; Index: Integer): string;
 begin
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
+
   case ObjectInspectorType of
     CObjectInspector_PropertySel:
       if FDisplayedProperties[Index].DisplayAsMixedDescription then
@@ -1543,6 +1585,12 @@ end;
 
 function TSelectionContent.GetPropertyDesignTimeOnly(ObjectInspectorType: Integer; Index: Integer): string;
 begin
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
+
   case ObjectInspectorType of
     CObjectInspector_PropertySel:
       if FDisplayedProperties[Index].DisplayAsMixedLocation then
@@ -1563,6 +1611,12 @@ end;
 
 function TSelectionContent.GetPropertyReadOnly(ObjectInspectorType: Integer; Index: Integer): string;
 begin
+  if (Length(FDisplayedProperties) = 0) or (Length(FDisplayedEvents) = 0) then
+  begin
+    Result := 'bug';
+    Exit;
+  end;
+
   case ObjectInspectorType of
     CObjectInspector_PropertySel:
       if FDisplayedProperties[Index].DisplayAsMixedReadOnly then
